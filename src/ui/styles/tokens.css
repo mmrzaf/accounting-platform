@@ -1,0 +1,39 @@
+/* Phase 2 design-system primitives: neutral by design; no dashboard-specific styling. */
+:root {
+  color-scheme: light;
+  --font-ui: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --surface: #ffffff;
+  --surface-subtle: #f7f8fa;
+  --text: #20242b;
+  --text-muted: #5e6674;
+  --border: #d7dce4;
+  --accent: #275b95;
+  --focus: #1d65b7;
+  --danger: #a42e38;
+  --radius: 0.5rem;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+}
+[data-theme='dark'] {
+  color-scheme: dark;
+  --surface: #16191f;
+  --surface-subtle: #20252d;
+  --text: #e9edf2;
+  --text-muted: #b6bfcb;
+  --border: #414a56;
+  --accent: #92baf0;
+  --focus: #a2c9fb;
+  --danger: #ff8a92;
+}
+html { font-family: var(--font-ui); background: var(--surface); color: var(--text); }
+*, *::before, *::after { box-sizing: border-box; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+button, input, select, textarea { font: inherit; }
+input, select, textarea { min-height: 2.5rem; padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); }
+button { min-height: 2.5rem; padding: var(--space-2) var(--space-4); border-radius: var(--radius); cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: 0.65; }
+[dir='rtl'] .money, [dir='ltr'] .money { direction: ltr; unicode-bidi: isolate; font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }

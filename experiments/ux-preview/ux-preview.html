@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>UX foundation — offline bilingual test fixture</title>
+  <link rel="stylesheet" href="../../src/ui/styles/tokens.css">
+  <style>
+    body { margin: 0 auto; max-width: 72rem; padding: 2rem 1rem; }
+    header { margin-block-end: 2rem; }
+    .samples { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 25rem), 1fr)); gap: 1rem; }
+    section { border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; background: var(--surface-subtle); }
+    form { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; align-items: end; }
+    label { display: grid; gap: .4rem; font-size: .9rem; }
+    .wide { grid-column: 1 / -1; }
+    table { width: 100%; border-collapse: collapse; margin-block-start: 1.5rem; }
+    th, td { padding: .7rem .35rem; border-bottom: 1px solid var(--border); text-align: start; }
+    .money { display: inline-block; }
+    .quiet { color: var(--text-muted); }
+    @media (max-width: 32rem) { form { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>UX foundation · RTL and LTR fixture</h1>
+    <p class="quiet">Static exploratory fixture; not the accounting application. No JavaScript or financial operations.</p>
+  </header>
+  <main class="samples">
+    <section lang="fa" dir="rtl">
+      <h2>ثبت پیش‌نویس خرید</h2>
+      <p class="quiet">فرم نمونه برای بررسی فاصله‌گذاری، خوانایی و جهت متن</p>
+      <form>
+        <label>فروشنده <input value="شرکت نمونه" autocomplete="off"></label>
+        <label>تاریخ <input type="text" placeholder="۱۴۰۵/۰۸/۲۶"></label>
+        <label class="wide">شرح <input value="خرید نمونه بدون ثبت مالی"></label>
+        <label>واحد پول <select><option>ریال ایران (IRR)</option><option>دلار (USD)</option></select></label>
+        <label>مبلغ <input dir="ltr" inputmode="decimal" value="12500000"></label>
+        <button type="button">ذخیره پیش‌نویس</button>
+      </form>
+      <table><thead><tr><th scope="col">شرح</th><th scope="col">مبلغ</th></tr></thead>
+        <tbody><tr><td>سند نمونه</td><td><span class="money">12,500,000 IRR</span></td></tr></tbody></table>
+    </section>
+    <section lang="en" dir="ltr">
+      <h2>Purchase draft</h2>
+      <p class="quiet">Testing typography, density, focus behavior and mixed-direction amounts</p>
+      <form>
+        <label>Supplier <input value="Sample company" autocomplete="off"></label>
+        <label>Date <input type="text" placeholder="2026-11-17"></label>
+        <label class="wide">Description <input value="Example purchase; no posting"></label>
+        <label>Currency <select><option>Iranian Rial (IRR)</option><option>US Dollar (USD)</option></select></label>
+        <label>Amount <input dir="ltr" inputmode="decimal" value="12500000"></label>
+        <button type="button">Save draft</button>
+      </form>
+      <table><thead><tr><th scope="col">Description</th><th scope="col">Amount</th></tr></thead>
+        <tbody><tr><td>Example document</td><td><span class="money">12,500,000 IRR</span></td></tr></tbody></table>
+    </section>
+  </main>
+</body>
+</html>
