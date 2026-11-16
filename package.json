@@ -1,9 +1,9 @@
 {
   "name": "accounting-platform",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
-  "description": "Strict TypeScript modular monolith foundation for AI-native accounting; production framework not yet integrated",
+  "description": "Strict TypeScript modular-monolith foundation with authenticated, exact double-entry accounting services; UI integration pending",
   "packageManager": "pnpm@10.20.0",
   "engines": {
     "node": ">=22.16.0 <23 || >=24.0.0 <25 || >=26.0.0 <27"
@@ -14,7 +14,7 @@
     "check:docs": "node --experimental-strip-types scripts/check-docs.ts",
     "check:sources": "node --experimental-strip-types scripts/check-sources.ts",
     "check": "npm run check:types && npm run check:docs && npm run check:sources && npm run check:boundaries",
-    "test": "node --experimental-strip-types --test experiments/sqlite-feasibility/*.test.ts tests/infrastructure/*.test.ts tests/identity/*.test.ts",
+    "test": "node --experimental-strip-types --test experiments/sqlite-feasibility/*.test.ts tests/infrastructure/*.test.ts tests/identity/*.test.ts tests/accounting/*.test.ts",
     "verify": "npm run check && npm run build && npm run test",
     "setup": "node --experimental-strip-types scripts/app.ts setup",
     "app:doctor": "node --experimental-strip-types scripts/app.ts doctor",
