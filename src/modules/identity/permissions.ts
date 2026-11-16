@@ -13,6 +13,8 @@ export const PERMISSIONS = {
   'accounting.configure': 'company',
   'accounting.reverse': 'company',
   'accounting.close': 'company',
+  'contacts.read': 'company',
+  'contacts.manage': 'company',
   'sales.read': 'company',
   'sales.manage': 'company',
   'purchasing.read': 'company',
@@ -29,7 +31,7 @@ const companyPermissions = (Object.keys(PERMISSIONS) as Permission[]).filter(key
 export const SYSTEM_ROLES = [
   { code: 'organization-admin', name: 'Organization administrator', scope: 'organization', permissions: organizationPermissions },
   { code: 'company-admin', name: 'Company administrator', scope: 'company', permissions: companyPermissions },
-  { code: 'company-accountant', name: 'Company accountant', scope: 'company', permissions: ['company.read', 'accounting.read', 'accounting.post', 'accounting.configure', 'accounting.reverse', 'accounting.close', 'sales.read', 'purchasing.read', 'payments.read', 'payments.manage'] },
-  { code: 'company-reader', name: 'Company read-only', scope: 'company', permissions: ['company.read', 'accounting.read', 'sales.read', 'purchasing.read', 'payments.read'] },
-  { code: 'company-operator', name: 'Company operations', scope: 'company', permissions: ['company.read', 'sales.read', 'sales.manage', 'purchasing.read', 'purchasing.manage', 'payments.read'] },
+  { code: 'company-accountant', name: 'Company accountant', scope: 'company', permissions: ['company.read', 'accounting.read', 'accounting.post', 'accounting.configure', 'accounting.reverse', 'accounting.close', 'contacts.read', 'sales.read', 'purchasing.read', 'payments.read', 'payments.manage'] },
+  { code: 'company-reader', name: 'Company read-only', scope: 'company', permissions: ['company.read', 'accounting.read', 'contacts.read', 'sales.read', 'purchasing.read', 'payments.read'] },
+  { code: 'company-operator', name: 'Company operations', scope: 'company', permissions: ['company.read', 'contacts.read', 'contacts.manage', 'sales.read', 'sales.manage', 'purchasing.read', 'purchasing.manage', 'payments.read'] },
 ] as const satisfies readonly { code: string; name: string; scope: RoleScope; permissions: readonly Permission[] }[]
