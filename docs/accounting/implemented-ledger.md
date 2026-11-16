@@ -2,7 +2,7 @@
 
 **Implementation:** `src/modules/accounting/` and checksummed migration `migrations/0003_accounting_ledger.sql`.
 
-This is a **framework-independent, SQLite-backed general ledger**, not an invoice/payment application or an end-user accounting interface. The company/organization model remains a provisional product decision; this implementation makes the company the financial isolation boundary.
+This is a **framework-independent, SQLite-backed general ledger**, now integrated with standalone Phase 5 invoice/payment services, but not an end-user accounting interface. The company/organization model remains a provisional product decision; this implementation makes the company the financial isolation boundary.
 
 ## Ownership and entry points
 
@@ -10,7 +10,7 @@ This is a **framework-independent, SQLite-backed general ledger**, not an invoic
 
 - **Books:** `setupBook`, `getBook`, `addCurrency`, `listCurrencies`, `addPeriod`, `listPeriods`, `setPeriodStatus`.
 - **Chart:** `createAccount`, `listAccounts`, `setAccountActive`. Accounts have immutable codes, categories, and parent relationships. Parents are non-postable; leaves are postable.
-- **Journal:** `postJournal`, `getJournal`, `reverseJournal`, and `postWithinTransaction` for future source-document transactions.
+- **Journal:** `postJournal`, `getJournal`, `reverseJournal`, and `postWithinTransaction` as an internal compositional hook (manual callers cannot impersonate `trade.*` source documents).
 - **Reporting:** `trialBalance`, `generalLedger`, `financialSummary`.
 
 The public interface uses TypeScript definitions in `types.ts`. Amounts are **canonical nonnegative decimal integer strings** (e.g. `'50000000'`) in currency minor units. No JS floating-point numbers represent monetary values. `bigint` is used internally and signed SQLite `INTEGER` bounds are checked before binding. Zero-only and one-sided journal lines are invalid.
@@ -24,12 +24,12 @@ The public interface uses TypeScript definitions in `types.ts`. Amounts are **ca
 5. Insert a staging header and immutable lines, then transition to `posted`. SQLite guards the transition with an exact custom `bigint_total` aggregate, count, active-account, period and base-currency checks.
 6. Write security audit in that **same transaction**, then commit. Retry with the same idempotency key and identical normalized payload returns the original posted journal. Different payload or duplicate source-event identity is a conflict.
 
-`postWithinTransaction` requires an existing database transaction. A future purchase/sale/payment workflow must update its source document and call this method inside **one** transaction, not post first and update the document afterward. Do not perform slow I/O or contact an AI provider while holding a writer transaction. It does not itself start nested transactions.
+`postWithinTransaction` requires an existing database transaction. Phase 5 purchase/sale/payment workflows update their source documents and call the protected internal posting service inside **one** transaction, not post first and update the document afterward. Do not perform slow I/O or contact an AI provider while holding a writer transaction. It does not itself start nested transactions.
 
 ## Ledger accounting and correction
 
 - Journals, lines and source references are immutable once posted. SQLite triggers reject updates/deletes. A direct `INSERT status='posted'` cannot bypass validation.
-- A correction of a posted journal uses `reverseJournal`, in an **open** period, with opposite debit/credit lines and a reference to the original. An original can be reversed once. Adjustments are new, independently traceable journal entries.
+- A correction of a **manual** posted journal uses `reverseJournal`, in an **open** period, with opposite debit/credit lines and a reference to the original. An original can be reversed once. Adjustments are new, independently traceable journal entries.
 - Periods cannot overlap for the same company and can be closed/reopened with a separately authorized and audited action. Reposting into a closed period is rejected; a retry of an already-posted idempotency key remains valid.
 - `generalLedger` sorts by business date and stable posting sequence, computes opening balance from earlier posted entries, then paginates with running balances.
 - `trialBalance` returns each account's gross debits/credits **and** ending debit/credit balances. Trial-balance totals sum ending balances, not gross movements. `financialSummary` reconciles assets, liabilities, equity, revenue and expenses from posted lines only.
@@ -44,7 +44,7 @@ The public interface uses TypeScript definitions in `types.ts`. Amounts are **ca
 
 ## Explicit limitations / future work
 
-This version does **not** provide invoice-to-ledger mapping, payment allocations, realized FX settlement differences, period-end FX revaluation, fiscal-year close/retained-earnings carry forward, tax policy, automated account templates, account reconciliations, attached documents, UI or AI tools. `financialSummary` is a **cumulative category reconciliation**, not a full formal balance sheet/P&L by fiscal year. The source document reference is an idempotent *opaque provenance key* until source services are implemented.
+The Phase 5 trading module provides invoice-to-ledger mapping and payment allocations. The current version does **not** provide realized FX settlement differences, period-end FX revaluation, fiscal-year close/retained-earnings carry forward, tax policy, automated account templates, account reconciliations, attached documents, UI or AI tools. `financialSummary` is a **cumulative category reconciliation**, not a full formal balance sheet/P&L by fiscal year. The source document reference is an idempotent *opaque provenance key* until source services are implemented.
 
 The `node:sqlite` adapter is used to run end-to-end offline tests. Its custom aggregate is installed by `openDatabase` on **every** connection. A future production database-driver replacement must preserve the posting-trigger contract or replace it with an equally strong exact DB-side mechanism, with tests. Drizzle and TanStack Start remain unintegrated, and Windows/macOS/Node 24/26 validation is still pending.
 

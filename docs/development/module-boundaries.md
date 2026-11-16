@@ -8,6 +8,7 @@ This repository contains an executable **foundation**, not a deployed TanStack a
 |---|---|---|
 | `src/shared` | Stable primitives and cross-boundary contracts | Import no business, platform or UI code |
 | `src/modules/accounting` | Book and currency configuration, company-scoped accounts, immutable posting/reversals, ledger-only reporting | Independent of HTTP/UI/AI; depends on identity actor checks and SQLite platform only |
+| `src/modules/trading` | Contact directory, source documents, payments, allocations, draft revision and accounting service orchestration | No HTTP/UI/AI dependency; no direct journal writes |
 | `src/modules/identity` | Use cases, policies, credentials, sessions, company access, roles | No transport-framework or UI imports |
 | `src/platform/database` | SQLite connection, migrations, SQL projection boundary | No business policy |
 | `src/platform/http` | Request/response adapter; authentication transport | Decode input; call services; never trust caller-supplied actor |
@@ -15,6 +16,7 @@ This repository contains an executable **foundation**, not a deployed TanStack a
 | `src/platform/backup` | Database backup/restore safety | Must not mutate accounting business rules |
 | `src/ui` | CSS tokens, locale formatting, eventually React components | Presentation only; no direct persistence or identity internals |
 | `scripts` | Operator commands, checks and local integration adapters | Scripts may compose public service and platform APIs |
+| `tests/trading` | End-to-end source+ledger workflows, settlement correctness, permissions and correction behavior | No external model/provider dependencies |
 | `tests/accounting` | Ledger domain behavior, exact currency math, permission/isolation, concurrency and rollback regressions | Never weaken invariant checks to make tests green |
 | `tests/identity`, `tests/infrastructure` | Feature and infrastructure regression suites | Black-box behavior and isolation, including adversarial requests |
 | `experiments` | Bounded technical probes and static UX fixture | Not production app code |

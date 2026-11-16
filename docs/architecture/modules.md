@@ -7,7 +7,7 @@ A single deployable modular monolith. Modules own behavior and their data invari
 | Identity | Users, credentials, sessions, role assignments | Organizations, platform auth |
 | Organizations & companies | Company membership, company settings, legal identity | Identity via stable actor contracts |
 | Accounting | Account chart, journals, posting, periods, ledger queries, rates | Company scope, pure money primitives |
-| Parties | Person/business identities, addresses, references | Organization scope |
+| Trading (`src/modules/trading/`) | Shared contacts, source invoices, receipts/payments, allocations and journal provenance | Identity actor + accounting reference/posting ports |
 | Catalogue | Goods/services/nonstock descriptions and units | Organization scope |
 | Sales | Sales documents and credit notes, lifecycle | Parties, catalogue, accounting posting port |
 | Purchasing | Purchase documents and supplier credits | Parties, catalogue, accounting posting port |
@@ -20,7 +20,7 @@ A single deployable modular monolith. Modules own behavior and their data invari
 
 ## Direction rule
 
-Presentation and transport -> application use cases -> domain invariants and ports -> infrastructure implementations. Shared contracts are intentionally small. Domain code must not import React/TanStack, Drizzle, database driver or model SDKs. A module may not read another module's tables without a documented read interface.
+Presentation and transport -> application use cases -> domain invariants and ports -> infrastructure implementations. Shared contracts are intentionally small. Domain code must not import React/TanStack, Drizzle, database driver or model SDKs. A module may not read another module's tables without a documented read interface. Phase 5 trading reads accounting-owned chart/book data through `accounting/references.ts` and posts through `accounting/posting.ts`.
 
 ## Transaction ownership
 

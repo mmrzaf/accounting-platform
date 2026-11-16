@@ -19,7 +19,7 @@ This is the source of truth for decision **status**. `CONFIRMED` means explicitl
 | D-13 | Accounting books | One primary ledger per company, base currency and fiscal periods | IMPLEMENTED-PROVISIONAL | Accounting service built; user-facing multi-company semantics still require signoff |
 | D-14 | Currency model | Exact int64 minor units, rational FX snapshots, half-even conversion | IMPLEMENTED-PARTIAL | Realized differences, revaluation and source-document currency logic pending |
 | D-15 | Chart of accounts | Editable per-company hierarchy with starter template | PROPOSED | Must preserve historical references |
-| D-16 | Party model | Organization-wide contact identity, company-specific account relationships | PROPOSED | Cannot mix company balances |
+| D-16 | Party model | Organization-wide contact identity, company-specific account relationships | IMPLEMENTED-PROVISIONAL | Phase 5 services and schema; user-facing policy still revisable |
 | D-17 | Inventory | Optional, one location; moving weighted-average valuation | PENDING | Requires financial postings/COGS contract |
 | D-18 | Authentication | Local credentials, scrypt hashing, opaque sessions and local operator recovery | IMPLEMENTED-PARTIAL | Web handler built, not deployed or browser-tested |
 | D-19 | Company permissions | Role grants scoped to organization or to explicit company | IMPLEMENTED-PROVISIONAL | Backend enforces scope; final user-facing company access semantics still require approval |
@@ -30,7 +30,8 @@ This is the source of truth for decision **status**. `CONFIRMED` means explicitl
 | D-24 | Phase delivery contract | Clean Git commits and full repository archives after each authorized phase | CONFIRMED | Preserve full `.git` history and clean working tree |
 | D-25 | Phase 2 foundation | CLI, checksummed migrations, isolated backup/restore, logging, localization primitives and CI recipe | IMPLEMENTED-PARTIAL | Offline functionality tested; full framework build and runtime matrix blocked |
 | D-26 | Phase 3 foundation | SQLite identity, organization/company-scoped RBAC, sessions, security audit, operator bootstrap and HTTP adapter | IMPLEMENTED-PARTIAL | Offline services tested; TanStack Start/UI/OS/runtime integration blocked |
-| D-27 | Accounting core | Company chart, fiscal periods, immutable balanced posting/reversals, ledger projections | IMPLEMENTED-PARTIAL | Standalone SQLite service and invariants tested; documents, formal reports and UI pending |
+| D-27 | Accounting core | Company chart, fiscal periods, immutable balanced posting/reversals, ledger projections | IMPLEMENTED-PARTIAL | Standalone SQLite service and invariants tested; formal reports and UI pending |
+| D-28 | Trading workflow | Base-currency non-stock invoices, payments/receipts, append-only allocations, controlled reversals | IMPLEMENTED-PARTIAL | Backend service tested; UI, source-document FX, returns and tax work remain |
 
 ## Approval required before irreversible domain schema and financial features
 

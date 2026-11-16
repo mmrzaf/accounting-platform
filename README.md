@@ -1,8 +1,8 @@
 # Accounting Platform
 
-**Strict TypeScript foundation with an executable accounting ledger — not yet a production-ready accounting application.**
+**Strict TypeScript accounting and business-workflow services — not yet a browser-based or production-ready accounting application.**
 
-A planned AI-native accounting and general trading platform for small Iranian businesses. The intended production system is a modular monolith with exact money arithmetic, enforced organization/company isolation, professional Persian/English UX, and an AI operator using the same application services as people. **A framework-independent double-entry accounting core is implemented; the TanStack Start/React application is still pending.**
+A planned AI-native accounting and general trading platform for small Iranian businesses. The intended production system is a modular monolith with exact money arithmetic, enforced organization/company isolation, professional Persian/English UX, and an AI operator using the same application services as people. **Framework-independent accounting and trading services are implemented; the TanStack Start/React application is still pending.**
 
 ## Current implementation
 
@@ -11,6 +11,7 @@ A planned AI-native accounting and general trading platform for small Iranian bu
 - SQLite-backed organizations, companies, users, hashed passwords, sessions, rate limiting, company-scoped role assignments, permissions, and append-only security audit.
 - Modular identity composition: bootstrap, sessions, users, companies, roles, and shared security context; one public `createIdentityService` facade.
 - SQLite-backed accounting books, per-company charts, immutable journals, exact FX snapshots, period controls, reversals, trial balance, general ledger and category reconciliation. See [implemented ledger](docs/accounting/implemented-ledger.md).
+- Trading services: shared contacts, purchase/sale invoice drafts and posts, base-currency receipts/disbursements, partial settlements, audited allocation reversals, retry-safe commands, company-specific internal document numbering and ledger-backed corrections. See [trading workflows](docs/domain/trading-workflows.md).
 - Framework-neutral HTTP `Request`/`Response` adapter with session cookies, origin/CSRF checks, and explicit request decoding; **not yet connected to an HTTP server**.
 - CLI for environment diagnostics, database migrations, backup/verify/restore, first administrator bootstrap, and local administrator recovery.
 - RTL/LTR locale and design tokens plus a static visual fixture; no React screens yet.
@@ -51,7 +52,7 @@ Other scripts: `check:types`, `check:sources`, `check:boundaries`, `check:docs`,
 - [System architecture](docs/architecture/system.md)
 - [Module responsibilities](docs/architecture/modules.md) and [current code boundaries](docs/development/module-boundaries.md)
 - [Implemented ledger API and limitations](docs/accounting/implemented-ledger.md), [accounting invariants](docs/accounting/accounting-core.md) and [money/FX policy](docs/accounting/money-and-fx.md)
-- [Authorization](docs/security/authorization.md) and [identity HTTP contract](docs/api/identity.md)
+- [Authorization](docs/security/authorization.md), [identity HTTP contract](docs/api/identity.md), and [trading service contract](docs/api/trading-service.md)
 - [Operation and recovery guidance](docs/operations/identity-bootstrap.md)
 - [Architecture decision register](docs/decisions/decision-register.md)
 - [Commit conventions](docs/development/commit-conventions.md)
@@ -60,6 +61,6 @@ Other scripts: `check:types`, `check:sources`, `check:boundaries`, `check:docs`,
 
 ## Explicit non-goals and unresolved work
 
-The TypeScript reconstruction and Phase 4 establish independently tested service boundaries; it **does not** introduce TanStack Start, React, Drizzle, a running server, source-document accounting workflows, or AI execution. The Phase 4 accounting core is implemented, but it is not a finished financial product. Adding production dependencies and passing frozen-install, Node compatibility, real browser and security tests remains a prerequisite before a business release. The SQLite identity services currently access the database through centralized typed SQL-projection casts; those casts need stronger schema-backed mapping when production persistence integration is established.
+The TypeScript reconstruction and Phase 4–5 establish independently tested service boundaries; they **do not** introduce TanStack Start, React, Drizzle, a running server, a user-visible invoice/payment UI, or AI execution. Purchase/sale and settlement source-document **backend services are implemented**, but they are not a finished financial product. Adding production dependencies and passing frozen-install, Node compatibility, real browser and security tests remains a prerequisite before a business release. The SQLite identity services currently access the database through centralized typed SQL-projection casts; those casts need stronger schema-backed mapping when production persistence integration is established.
 
 The company model, some detailed FX rules, inventory valuation and AI execution thresholds remain documented as proposed/pending, not silently approved. See the decision register. Any subsequent financial work must preserve double entry, postings/reversals, isolation and authorization invariants.
