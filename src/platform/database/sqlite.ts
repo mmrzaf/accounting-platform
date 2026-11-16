@@ -17,6 +17,11 @@ export function openDatabase(path: string, { create = true }: { create?: boolean
       if (typeof sum !== 'bigint') throw new TypeError('Expected bigint accumulator')
       return sum.toString()
     }, useBigIntArguments: true, deterministic: true })
+    // Never coerce accumulated financial amounts through JS Number or SQLite SUM.
+    db.function('bigint_le', { deterministic: true, useBigIntArguments: true }, (left: unknown, right: unknown) => {
+      if (typeof left !== 'string' || (typeof right !== 'bigint' && typeof right !== 'string')) throw new TypeError('Invalid exact amount comparison')
+      return BigInt(left) <= BigInt(right) ? 1 : 0
+    })
     if (create && path !== ':memory:') {
       db.exec('PRAGMA journal_mode=WAL')
       // The enclosing directory should also be private; restrict file access on POSIX.
