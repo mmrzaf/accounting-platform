@@ -16,3 +16,7 @@ Record the final verification summary and clean-clone result in the release note
 ## Still blocked / outside this phase
 
 The real TanStack Start/React app, Drizzle integration, frozen pnpm install, browser E2E and RTL/LTR workflows are still outstanding. They require actual package installs and supported environment runners. Phase 5 should be described as a **tested backend business-workflow milestone**, not a released application. Support for foreign-currency source documents and realized exchange gains/losses, returns/credit notes, cash/bank reconciliation, tax compliance, valued inventory, and attachments must be implemented and tested before their feature claims can be made.
+
+### Observed local result (2026-11-17)
+
+`npm run verify` completed successfully on **Linux / Node 22.16.0**: **70 tests passed, 0 failed**. Repository-wide `tsc` strict checking, TypeScript compilation, documentation/link checks, source-extension checks, and module import-boundary checks passed. Node 24, Node 26, Windows, macOS, browser E2E, and dependency installation were **not** executed here.
