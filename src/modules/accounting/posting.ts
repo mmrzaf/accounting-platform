@@ -125,8 +125,8 @@ export function createPostingService(ctx: AccountingContext) {
       throw new Error('Journal post invariant failed')
     return canonical(result, loadLines(actor, companyId, entry.id))
   }
-  /** Also usable by future document services inside their OWN BEGIN IMMEDIATE transaction. */
-  function postWithinTransaction(input: PostJournalInput) {
+  /** Trusted business document services compose posting inside their OWN BEGIN IMMEDIATE transaction. */
+  function postWithinTransaction(input: PostJournalInput, options: { allowDocumentSource?: boolean } = {}) {
     if (!db.isTransaction)
       return invalid('Posting requires an active database transaction')
     const actor = actorFor(input, 'accounting.post')
@@ -135,6 +135,8 @@ export function createPostingService(ctx: AccountingContext) {
     const sourceEvent = key(input.sourceEvent, 'sourceEvent'), idempotencyKey = key(input.idempotencyKey, 'idempotencyKey')
     if (sourceType === 'reversal')
       return invalid('Reversals must use the dedicated reverseJournal operation')
+    if (sourceType.startsWith('trade.') && !options.allowDocumentSource)
+      return invalid('Source documents must post through their owning business service')
     const description = text(input.description, 'Description', 500)
     const lineInputs = decodeLines(input.lines)
     const prepared: PreparedLine[] = lineInputs.map((line, index) => {
@@ -213,32 +215,36 @@ export function createPostingService(ctx: AccountingContext) {
       return missing()
     return canonical(journal, loadLines(actor, input.companyId, journal.id))
   }
-  function reverseJournal(input: ReverseJournalInput) {
+  function reverseWithinTransaction(input: ReverseJournalInput, options: { allowDocumentSource?: boolean } = {}) {
+    if (!db.isTransaction) return invalid('Reversal requires an active database transaction')
     const journalId = uuid(input.journalId, 'journalId'), date = dateOnly(input.date)
     const idempotencyKey = key(input.idempotencyKey, 'idempotencyKey'), reason = text(input.reason, 'Reason', 500)
-    return transaction(db, () => {
-      const actor = actorFor(input, 'accounting.reverse')
-      const book = bookFor(actor, input.companyId)
-      const original = loadEntry(actor, input.companyId, journalId)
-      if (!original)
-        return missing()
-      if (original.reverses_id !== null)
-        return invalid('Reversing a reversal requires an explicit adjustment entry')
-      const fingerprint = encodeFingerprint({ journalId, date, reason })
-      const prior = byIdempotency(actor, input.companyId, idempotencyKey, fingerprint)
-      if (prior)
-        return { ...prior, replayed: true }
-      if (db.prepare('SELECT 1 FROM journal_entries WHERE organization_id=? AND company_id=? AND reverses_id=?').get(actor.organizationId, input.companyId, journalId))
-        return conflict('Journal already reversed')
-      const period = requirePeriod(actor, input.companyId, date)
-      const originalLines = loadLines(actor, input.companyId, journalId)
-      const lines = originalLines.map(line => ({ accountId: line.account_id, debit: line.credit_minor, credit: line.debit_minor,
-        currency: line.currency, transaction: line.transaction_minor, rateNumerator: line.rate_numerator,
-        rateDenominator: line.rate_denominator, rateDate: line.rate_date, rateSource: line.rate_source, memo: line.memo }))
-      const result = insertEntry(actor, input.companyId, { id: randomUUID(), periodId: period.id, date, sourceType: 'reversal', sourceId: journalId,
-        sourceEvent: 'reverse', idempotencyKey, fingerprint, description: reason, reversesId: journalId, baseCurrency: book.base_currency }, lines)
-      return { ...result, replayed: false }
-    })
+    const actor = actorFor(input, 'accounting.reverse')
+    const book = bookFor(actor, input.companyId)
+    const original = loadEntry(actor, input.companyId, journalId)
+    if (!original)
+      return missing()
+    if (original.source_type.startsWith('trade.') && !options.allowDocumentSource)
+      return invalid('Reverse business documents using their originating application service')
+    if (original.reverses_id !== null)
+      return invalid('Reversing a reversal requires an explicit adjustment entry')
+    const fingerprint = encodeFingerprint({ journalId, date, reason })
+    const prior = byIdempotency(actor, input.companyId, idempotencyKey, fingerprint)
+    if (prior)
+      return { ...prior, replayed: true }
+    if (db.prepare('SELECT 1 FROM journal_entries WHERE organization_id=? AND company_id=? AND reverses_id=?').get(actor.organizationId, input.companyId, journalId))
+      return conflict('Journal already reversed')
+    const period = requirePeriod(actor, input.companyId, date)
+    const originalLines = loadLines(actor, input.companyId, journalId)
+    const lines = originalLines.map(line => ({ accountId: line.account_id, debit: line.credit_minor, credit: line.debit_minor,
+      currency: line.currency, transaction: line.transaction_minor, rateNumerator: line.rate_numerator,
+      rateDenominator: line.rate_denominator, rateDate: line.rate_date, rateSource: line.rate_source, memo: line.memo }))
+    const result = insertEntry(actor, input.companyId, { id: randomUUID(), periodId: period.id, date, sourceType: 'reversal', sourceId: journalId,
+      sourceEvent: 'reverse', idempotencyKey, fingerprint, description: reason, reversesId: journalId, baseCurrency: book.base_currency }, lines)
+    return { ...result, replayed: false }
   }
-  return Object.freeze({ postJournal, postWithinTransaction, getJournal, reverseJournal })
+  function reverseJournal(input: ReverseJournalInput) {
+    return transaction(db, () => reverseWithinTransaction(input))
+  }
+  return Object.freeze({ postJournal, postWithinTransaction, getJournal, reverseJournal, reverseWithinTransaction })
 }

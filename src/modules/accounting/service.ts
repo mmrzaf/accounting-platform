@@ -9,10 +9,15 @@ export function createAccountingService(db: DatabaseSync, { clock = () => new Da
   clock?: () => Date
 } = {}) {
   const context = accountingContext(db, clock)
+  const posting = createPostingService(context)
+  // The document-only reversal entry point is intentionally NOT part of the public accounting facade.
   return Object.freeze({
     ...createBookService(context),
     ...createChartService(context),
-    ...createPostingService(context),
+    postJournal: posting.postJournal,
+    postWithinTransaction: (input: Parameters<typeof posting.postWithinTransaction>[0]) => posting.postWithinTransaction(input),
+    getJournal: posting.getJournal,
+    reverseJournal: posting.reverseJournal,
     ...createReportingService(context),
   })
 }
