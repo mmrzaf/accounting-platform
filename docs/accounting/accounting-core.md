@@ -1,6 +1,6 @@
 # Accounting core — specification baseline
 
-**Status:** Proposed policies and invariants, not an implemented ledger. Must be approved with sample journal walkthroughs before Phase 4.
+**Status:** Core accounting behavior is implemented and tested in the standalone service; source-document integration, fiscal-year closing and formal financial statements remain to be built. See [implemented ledger](implemented-ledger.md).
 
 ## Double-entry contract
 

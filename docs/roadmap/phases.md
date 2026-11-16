@@ -8,7 +8,7 @@
 | 1 | Technical feasibility | Environment checks, focused probes, evidence matrix, documented blockers and next tests |
 | 2 | Engineering foundation | CLI, configuration, migrations, recovery primitives, CI and UX tokens **implemented offline**; routing/build, pnpm dependency lock and runtime matrix **pending external validation** |
 | 3 | Identity, organizations & companies | Offline services, bootstrap and negative isolation tests delivered; real TanStack/UI integration pending |
-| 4 | Accounting engine | Exact arithmetic, journals, posting, reversal, periods, reports reconcile |
+| 4 | Accounting engine | Standalone exact-arithmetic journal, reversal, periods, trial balance, general ledger and reconciliation **implemented and tested**; document flows, UI and FX settlement differences pending |
 | 5 | First business journeys | Purchase/sale/invoice/settlement end to end with accounting correctness |
 | 6 | AI operations | Typed service calls with authorization, policy, idempotency and audit |
 | 7 | Remaining first-release features | Reports, returns, attachments, imports, optional inventory |

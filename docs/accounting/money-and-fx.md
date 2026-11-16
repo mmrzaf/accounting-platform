@@ -20,6 +20,8 @@ Each company has one accounting base currency, configurable before first posting
 
 Store business dates as canonical ISO `YYYY-MM-DD` (semantically date-only, in the company's configured calendar policy) and instants as UTC timestamps. Jalali/Gregorian conversion only at input/output formatting edges; never store localized display strings. Fiscal period closure uses the company's defined timezone/date cutoff. Date-only values should not be converted through timezone-dependent midnight instants accidentally.
 
-## Pending implementation decision
+## Implemented decision and remaining gaps
 
-Determine money limit strategy, decimal library, exchange-rate quotation and rounding method before migrations. Benchmark SQLite aggregation and string/BigInt serialization, including large IRR totals, rather than guessing arithmetic safety.
+The core now uses signed 64-bit SQLite `INTEGER` for each nonnegative base/foreign amount, canonical string serialization, `bigint` for all arithmetic and aggregation, rational FX rates stored as numerator/denominator, and per-line **round-half-to-even** conversion. Rates mean base minor units per foreign minor unit. Overflow is rejected. Report totals can exceed int64 because aggregation occurs in `bigint`. See [implemented ledger](implemented-ledger.md).
+
+Realized settlement differences, period-end revaluation, currency conversion on source documents and formal fiscal-year closing remain **unimplemented**; they must not be inferred from the existing rate-snapshot functionality.

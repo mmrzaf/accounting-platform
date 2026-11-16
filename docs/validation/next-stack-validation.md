@@ -1,6 +1,6 @@
 # Next environment validation plan (Phase 1 carryover into Phase 2 entry)
 
-These are not completed tests. They should run **before any accounting feature development** on a connected machine with Node 24 LTS, pnpm and OS CI access.
+These are not completed tests. They should run **before production application release and framework integration** on a connected machine with Node 24 LTS, pnpm and OS CI access. The standalone accounting core is implemented offline but does not satisfy these gates.
 
 ## Reproducibility
 
@@ -21,7 +21,7 @@ These are not completed tests. They should run **before any accounting feature d
 
 ## Drizzle/SQLite integration
 
-- Prove chosen driver returns exact signed 64-bit values as BigInt; verify unsafe JS numbers are rejected at the application boundary.
+- Prove chosen driver returns exact signed 64-bit values as BigInt; verify unsafe JS numbers are rejected at the application boundary. The current posting guard depends on a per-connection custom `bigint_total` SQL aggregate; verify equivalent exact database-side enforcement with the chosen production driver.
 - Generate/apply migrations twice to a clean database; check FK PRAGMA every connection and partial failure rollback/migration recovery.
 - Use composite `(organization_id, company_id)` references, per-company unique constraints and explicit query scoping. Prove cross-org and cross-company negative tests.
 - Exercise conflicting idempotency keys, simultaneous postings, timed-out request outcome recovery, WAL checkpoint and file locking.
