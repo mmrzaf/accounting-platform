@@ -9,6 +9,14 @@ export function openDatabase(path: string, { create = true }: { create?: boolean
   try {
     db.exec('PRAGMA foreign_keys=ON')
     db.exec('PRAGMA busy_timeout=5000')
+    // Exact, unbounded aggregation for SQL posting trigger. No floating-point SUM.
+    db.aggregate('bigint_total', { start: 0n, step: (sum, value) => {
+      if (typeof sum !== 'bigint' || (value !== null && typeof value !== 'bigint')) throw new TypeError('Expected SQLite int64 inputs')
+      return sum + (value ?? 0n)
+    }, result: sum => {
+      if (typeof sum !== 'bigint') throw new TypeError('Expected bigint accumulator')
+      return sum.toString()
+    }, useBigIntArguments: true, deterministic: true })
     if (create && path !== ':memory:') {
       db.exec('PRAGMA journal_mode=WAL')
       // The enclosing directory should also be private; restrict file access on POSIX.
