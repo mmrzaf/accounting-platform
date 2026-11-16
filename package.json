@@ -1,0 +1,37 @@
+{
+  "name": "accounting-platform",
+  "version": "0.3.2",
+  "private": true,
+  "type": "module",
+  "description": "Strict TypeScript modular monolith foundation for AI-native accounting; production framework not yet integrated",
+  "packageManager": "pnpm@10.20.0",
+  "engines": {
+    "node": ">=22.16.0 <23 || >=24.0.0 <25 || >=26.0.0 <27"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "check:types": "tsc -p tsconfig.json",
+    "check:docs": "node --experimental-strip-types scripts/check-docs.ts",
+    "check:sources": "node --experimental-strip-types scripts/check-sources.ts",
+    "check": "npm run check:types && npm run check:docs && npm run check:sources && npm run check:boundaries",
+    "test": "node --experimental-strip-types --test experiments/sqlite-feasibility/*.test.ts tests/infrastructure/*.test.ts tests/identity/*.test.ts",
+    "verify": "npm run check && npm run build && npm run test",
+    "setup": "node --experimental-strip-types scripts/app.ts setup",
+    "app:doctor": "node --experimental-strip-types scripts/app.ts doctor",
+    "db:migrate": "node --experimental-strip-types scripts/app.ts db:migrate",
+    "db:status": "node --experimental-strip-types scripts/app.ts db:status",
+    "db:check": "node --experimental-strip-types scripts/app.ts db:check",
+    "app:backup": "node --experimental-strip-types scripts/app.ts backup:create",
+    "app:backup-verify": "node --experimental-strip-types scripts/app.ts backup:verify",
+    "app:restore": "node --experimental-strip-types scripts/app.ts backup:restore",
+    "app:bootstrap": "node --experimental-strip-types scripts/app.ts organization:bootstrap",
+    "app:recover-admin": "node --experimental-strip-types scripts/app.ts admin:recover",
+    "test:probes": "node --experimental-strip-types --test experiments/sqlite-feasibility/*.test.ts",
+    "probe:types": "tsc -p tsconfig.json",
+    "check:boundaries": "node --experimental-strip-types scripts/check-boundaries.ts"
+  },
+  "devDependencies": {
+    "@types/node": "25.1.0",
+    "typescript": "5.8.3"
+  }
+}

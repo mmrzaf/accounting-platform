@@ -1,0 +1,30 @@
+# Credentials and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+# Artifacts and ephemeral data
+node_modules/
+dist/
+.output/
+coverage/
+test-results/
+playwright-report/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.log
+.DS_Store
+Thumbs.db
+.tmp/
+var/
+*.sqlite-journal
+*.db-journal
+*.backup
+*.manifest.json
+.tanstack/
+.vite/
