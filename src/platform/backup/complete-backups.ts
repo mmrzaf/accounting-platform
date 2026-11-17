@@ -1,6 +1,6 @@
 import { backup as sqliteBackup, DatabaseSync } from 'node:sqlite'
 import { createHash, randomUUID } from 'node:crypto'
-import { createReadStream } from 'node:fs'
+import { createReadStream, constants as fsConstants } from 'node:fs'
 import { chmod, copyFile, lstat, mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { openDatabase, checkDatabase } from '../database/sqlite.ts'
@@ -126,7 +126,7 @@ export async function createCompleteBackup(databasePath: string, attachmentRoot:
       if (sourceStat.size !== row.byte_length || await sha256(sourcePath) !== row.sha256)
         throw new BackupError('Attachment bytes do not match database metadata')
       await mkdir(dirname(targetPath), { recursive: true, mode: 0o700 })
-      await copyFile(sourcePath, targetPath, 1 /* COPYFILE_EXCL */)
+      await copyFile(sourcePath, targetPath, fsConstants.COPYFILE_EXCL)
       await chmod(targetPath, 0o600)
       const copiedStat = await regularFile(targetPath, 'Copied attachment')
       if (copiedStat.size !== row.byte_length || await sha256(targetPath) !== row.sha256)
@@ -207,13 +207,13 @@ export async function restoreCompleteBackup(bundleDirectory: string, destination
   try {
     await mkdir(blobRoot, { mode: 0o700 })
     createdRoot = true
-    await copyFile(join(source, DATABASE), dbPath, 1 /* COPYFILE_EXCL */)
+    await copyFile(join(source, DATABASE), dbPath, fsConstants.COPYFILE_EXCL)
     createdDb = true
     await chmod(dbPath, 0o600)
     for (const blob of manifest.blobs) {
       const dest = join(blobRoot, blob.relativePath)
       await mkdir(dirname(dest), { recursive: true, mode: 0o700 })
-      await copyFile(join(source, 'blobs', blob.relativePath), dest, 1 /* COPYFILE_EXCL */)
+      await copyFile(join(source, 'blobs', blob.relativePath), dest, fsConstants.COPYFILE_EXCL)
       await chmod(dest, 0o600)
     }
     const db = openDatabase(dbPath, { create: false })
