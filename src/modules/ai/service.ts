@@ -91,6 +91,11 @@ export function createAiService(db:DatabaseSync, options:{
       return {baseUrl,model,supportsTools:input.supportsTools,enabled:input.enabled,hasApiKey:true}
     })
   }
+  function getStatus(input:CompanyAiInput){
+    const actor=actorFor(input,'ai.use')
+    const configured=provider(actor.companyId)
+    return { ready:!!configured?.enabled, providerConfigured:!!configured, model:configured?.enabled?configured.model:null }
+  }
   function getProvider(input:{sessionToken:string}){
     const actor=identity.requireActor(input.sessionToken,'ai.configure')
     const row=provider(actor.companyId)
@@ -361,6 +366,6 @@ export function createAiService(db:DatabaseSync, options:{
       throw error
     }
   }
-  return Object.freeze({configureProvider,getProvider,setPolicy,getPolicy,createConversation,listConversations,getConversation,
+  return Object.freeze({configureProvider,getProvider,getStatus,setPolicy,getPolicy,createConversation,listConversations,getConversation,
     archiveConversation,runTurn,getTurn,listTurns,approveAction,rejectAction})
 }

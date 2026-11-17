@@ -59,7 +59,7 @@ function ApprovalCard({action,locale,busy,onDecision,onNavigate}:{action:Assista
     {!preview.totalMinor&&preview.paymentMinor&&<p className="assistant-money" dir="ltr">{amount(preview.paymentMinor)}</p>}
     {action.state==='awaiting_approval'&&<div className="assistant-approval-controls"><button type="button" disabled={busy} onClick={()=>onDecision('approve')}>{fa?'تأیید و ثبت':'Confirm and record'}</button>
       <button type="button" className="secondary" disabled={busy} onClick={()=>onDecision('reject')}>{fa?'لغو':'Cancel'}</button></div>}
-    {action.state==='completed'&&<DocumentLinks links={action.links} onNavigate={onNavigate}/>}
+    {action.state==='completed'&&<DocumentLinks links={action.links} {...(onNavigate?{onNavigate}:{})}/>}
     {action.state==='failed'&&<p className="muted">{fa?'این عملیات ثبت نشد.':'The operation was not recorded.'}</p>}
     {preview.risk==='financial'&&<p className="muted fine-print">{fa?'ثبت دریافت/پرداخت فقط ثبت رویداد مالی در نرم‌افزار است؛ انتقال بانکی انجام نمی‌شود.':'Recording a receipt/payment only updates the books; it never transfers funds.'}</p>}
   </section>
@@ -83,6 +83,7 @@ export function AssistantWorkspace({compact=false,onNavigate}:{compact?:boolean;
   const [loading,setLoading]=useState(true)
   const [error,setError]=useState<string|null>(null)
   const [disabled,setDisabled]=useState(false)
+  const [restricted,setRestricted]=useState(false)
   const scrollRef=useRef<HTMLDivElement>(null)
   const conversationRef=useRef<string|null>(null)
   const requestKeyRef=useRef<string|null>(null)
@@ -104,12 +105,15 @@ export function AssistantWorkspace({compact=false,onNavigate}:{compact?:boolean;
   },[call])
   const initialPromptRef=useRef(assistantDraft)
   useEffect(()=>{let active=true
-    void call<ConversationList>('/api/ai/conversations').then(async data=>{
+    void call<{ready:boolean}>('/api/ai/status').then(async status=>{
+      if(!active)return
+      setDisabled(!status.ready)
+      const data=await call<ConversationList>('/api/ai/conversations')
       if(!active)return
       setConversations(data.items)
-      if(!initialPromptRef.current && data.items[0] && !conversationRef.current) await selectConversation(data.items[0].id)
+      if(status.ready&&!initialPromptRef.current && data.items[0] && !conversationRef.current) await selectConversation(data.items[0].id)
       if(active)setLoading(false)
-    }).catch(cause=>{if(active){setLoading(false);setError(cause instanceof Error?cause.message:String(cause))}})
+    }).catch(cause=>{if(active){setLoading(false);if(cause instanceof ApiError && cause.status===403){setRestricted(true);setDisabled(true)}else if(cause instanceof ApiError && (cause.code==='AI_DISABLED'||cause.code==='CONFIGURATION_REQUIRED'||cause.status===503||cause.status===404))setDisabled(true);else setError(cause instanceof Error?cause.message:String(cause))}})
     return()=>{active=false}
   },[call,selectConversation])
   useEffect(()=>{if(assistantDraft){setMessage(assistantDraft);consumeAssistantDraft()}},[assistantDraft,consumeAssistantDraft])
@@ -164,35 +168,33 @@ export function AssistantWorkspace({compact=false,onNavigate}:{compact?:boolean;
         <p className="muted">{fa?'در همین محیط کار می‌کند؛ اسناد را پیدا می‌کند و عملیات مجاز را ثبت می‌کند.':'Works in your accounting workspace. Searches records and completes authorized operations.'}</p></div></div>
       <div className="assistant-transcript" role="log" aria-label={fa?'پیام‌های گفتگو':'Conversation messages'} aria-live="polite">
         {loading?<p className="muted">{fa?'بارگذاری…':'Loading…'}</p>:null}
-        {!loading&&turns.length===0&&<div className="assistant-welcome"><Icon name="assistant" size={25}/>
+        {disabled&&<div className="assistant-disabled-panel"><Icon name="assistant" size={28}/><h3>{restricted?(fa?'دسترسی به دستیار محدود است':'Assistant access is restricted'):(fa?'دستیار هنوز آماده نیست':'Assistant is not ready yet')}</h3><p>{restricted?(fa?'نقش کاربری شما مجوز استفاده از دستیار را ندارد. برای دسترسی با مدیر شرکت تماس بگیرید.':'Your role does not have assistant access. Contact your company administrator.'):(fa?'مدیر باید اتصال هوش مصنوعی را در سرور فعال و ارائه‌دهنده مدل را در تنظیمات تعریف کند. حسابداری بدون دستیار همچنان کار می‌کند.':'An administrator must enable AI on the server and configure a model in Settings. Accounting continues to work without AI.')}</p>{!restricted&&<><Link to="/settings" onClick={onNavigate} className="inline-action">{fa?'رفتن به تنظیمات':'Open Settings'} <Icon name="arrow" size={16}/></Link><p className="assistant-configuration-note">{fa?'کلید رمزنگاری را می‌توان با دستور pnpm run app:ai-initialize ساخت.':'Initialize the local encryption key with pnpm run app:ai-initialize.'}</p></>}</div>}
+        {!disabled&&!loading&&turns.length===0&&<div className="assistant-welcome"><Icon name="assistant" size={25}/>
           <h3>{fa?'چه کاری باید انجام شود؟':'What should we work on?'}</h3>
           <p className="muted">{fa?'می‌توانید به زبان معمولی درباره خرید، فروش، تسویه و حساب‌ها سؤال کنید.':'Ask about purchases, sales, settlements, contacts, or the ledger in plain language.'}</p>
           <div className="assistant-suggestions">{suggestions.map(s=><button type="button" key={s} className="assistant-suggestion" onClick={()=>setMessage(s)}>{s}</button>)}</div>
         </div>}
-        {turns.map(turn=><div className="assistant-exchange" key={turn.id}>
+        {!disabled&&turns.map(turn=><div className="assistant-exchange" key={turn.id}>
           <div className="assistant-bubble assistant-user-message">{turn.message}</div>
           <div className="assistant-bubble assistant-answer">
             <div className="assistant-answer-name"><Icon name="assistant" size={15}/>{fa?'دستیار':'Assistant'}</div>
             {turn.reply&&<p>{fa&&turn.action?.state==='completed'&&turn.reply.endsWith('The accounting records were updated successfully.') ? 'عملیات با موفقیت در حسابداری ثبت شد.' : turn.reply}</p>}
-            {turn.action&&<ApprovalCard action={turn.action} locale={locale} busy={busy} onDecision={d=>void decide(turn.action!,d)} onNavigate={onNavigate}/>}
+            {turn.action&&<ApprovalCard action={turn.action} locale={locale} busy={busy} onDecision={d=>void decide(turn.action!,d)} {...(onNavigate?{onNavigate}:{})}/>}
             {turn.status==='processing'&&<p className="muted">{fa?'در حال بررسی…':'Working on it…'}</p>}
           </div>
         </div>)}
         {busy&&<p className="assistant-pending muted" role="status">{fa?'در حال پردازش…':'Processing…'}</p>}
         <div ref={scrollRef}/>
       </div>
-      <form className="assistant-composer" onSubmit={event=>void send(event)}>
-        <Alert text={error}/>
-        {disabled&&<p className="muted">{fa?'دستیار روی سرور فعال نشده است. مدیر باید کلید اصلی و ارائه‌دهنده مدل را تنظیم کند.':'AI is disabled on this server. An administrator must enable the AI master key and configure a provider.'}</p>}
+      {!disabled&&<form className="assistant-composer" onSubmit={event=>void send(event)}>
+        {!disabled&&<Alert text={error}/>}
         <label className="sr-only" htmlFor={compact?'ai-drawer-prompt':'ai-page-prompt'}>{fa?'پیام به دستیار':'Message to assistant'}</label>
         <textarea id={compact?'ai-drawer-prompt':'ai-page-prompt'} rows={compact?3:4} value={message} onChange={e=>{setMessage(e.target.value);requestKeyRef.current=null}}
           onKeyDown={composerKey} placeholder={fa?'مثلاً: از علی ۲۰ عدد خریدیم، ۲۰ میلیون تومان پرداخت شد…':'Example: Record a purchase from Ali with a partial payment…'} maxLength={4000}
-          disabled={busy||pending}/>
-        <div className="assistant-composer-actions"><label className="assistant-execution-option"><input type="checkbox" checked={executionMode==='auto'} onChange={e=>setExecutionMode(e.target.checked?'auto':'review')}/>
-          <span>{fa?'اجرای مستقیم عملیات مجاز':'Run permitted actions automatically'}</span></label>
-          <button type="submit" disabled={!message.trim()||busy||pending}>{fa?'ارسال':'Send'} <Icon name="arrow" size={16}/></button></div>
-        <p className="assistant-trust-note">{fa?'اطلاعات لازم برای پاسخ ممکن است به مدل پیکربندی‌شده ارسال شود. عملیات مالی فقط با مجوز و قواعد حسابداری انجام می‌شود.':'Necessary business context may be sent to the configured AI provider. Financial operations always use your permissions and accounting rules.'}</p>
-      </form>
+          disabled={busy||pending||disabled}/>
+        <div className="assistant-composer-actions"><button type="submit" disabled={!message.trim()||busy||pending||disabled}>{fa?'ارسال':'Send'} <Icon name="arrow" size={16}/></button></div>
+        <p className="assistant-trust-note">{fa?'دستیار فقط با مجوزهای شما و سیاست شرکت اقدام می‌کند. اطلاعات ضروری ممکن است به ارائه‌دهنده مدل ارسال شود.':'The assistant follows your permissions and company policy. Necessary context may be sent to the selected model.'}</p>
+      </form>}
     </div>
   </section>
 }

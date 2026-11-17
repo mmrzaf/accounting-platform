@@ -101,7 +101,7 @@ export function Shell() {
           <div className="topbar-breadcrumb"><span>{t.app}</span><Icon name="chevron" size={15}/><strong>{current?t[current.key]:t.home}</strong></div>
         </div>
         <div className="topbar-actions">
-          <button type="button" className="search-trigger" onClick={()=>setQuickOpen(true)} aria-label={locale==='fa'?'رفتن به بخش؛ کنترل کی':'Navigate sections; Control K'}><Icon name="search" size={17}/><span>{locale==='fa'?'رفتن به بخش…':'Go to…'}</span><kbd>⌘ K</kbd></button>
+          <button type="button" className="search-trigger" onClick={()=>setQuickOpen(true)} aria-label={locale==='fa'?'رفتن به بخش؛ کنترل کی':'Navigate sections; Control K'}><Icon name="search" size={17}/><span>{locale==='fa'?'رفتن به بخش…':'Go to…'}</span><kbd>Ctrl K</kbd></button>
           <label className="language-control"><Icon name="globe" size={17}/><span className="sr-only">{t.language}</span><select aria-label={t.language} value={locale} onChange={event=>setLocale(event.target.value==='fa'?'fa':'en')}><option value="fa">فارسی</option><option value="en">English</option></select></label>
           <button type="button" className="assistant-top-action" aria-haspopup="dialog" onClick={()=>openAssistant()}><Icon name="assistant" size={18}/><span>{t.assistant}</span></button>
         </div>
@@ -111,7 +111,7 @@ export function Shell() {
     {quickOpen&&<QuickNavigate close={()=>setQuickOpen(false)}/>}
     {assistantOpen&&<div className="assistant-drawer-backdrop" onMouseDown={event=>{if(event.target===event.currentTarget)closeAssistant()}}>
       <aside className="assistant-drawer" role="dialog" aria-modal="true" aria-label={locale==='fa'?'دستیار مالی':'Financial assistant'}>
-        <div className="assistant-drawer-top"><span>{t.assistant}</span><button type="button" className="icon-button" aria-label={locale==='fa'?'بستن':'Close'} onClick={closeAssistant}><Icon name="close"/></button></div>
+        <div className="assistant-drawer-top"><strong><Icon name="assistant" size={18}/>{t.assistant}</strong><div className="document-actions"><Link to="/assistant" className="assistant-drawer-open" onClick={closeAssistant}>{locale==='fa'?'نمای کامل':'Full workspace'}</Link><button type="button" className="icon-button" aria-label={locale==='fa'?'بستن':'Close'} onClick={closeAssistant}><Icon name="close"/></button></div></div>
         <AssistantWorkspace compact onNavigate={closeAssistant}/>
       </aside>
     </div>}

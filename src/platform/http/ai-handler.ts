@@ -25,6 +25,8 @@ export function createAiHttpHandler(identity: ReturnType<typeof createIdentitySe
       const session = identity.me(sessionToken)
       const companyId = session.company.id
       if (method !== 'GET') identity.verifyCsrf(sessionToken,request.headers.get('x-csrf-token'))
+      if (url.pathname === '/api/ai/status' && method === 'GET')
+        return response(ai.getStatus({sessionToken,companyId}))
       if (url.pathname === '/api/ai/provider' && method === 'GET')
         return response(ai.getProvider({sessionToken}))
       if (url.pathname === '/api/ai/provider' && method === 'PUT') {

@@ -61,7 +61,7 @@ export function AiSettings(){
       <div className="form-grid">
         <Field label={fa?'نشانی API سازگار با OpenAI':'OpenAI-compatible API base URL'}>{id=><input id={id} dir="ltr" type="url" required maxLength={512} value={baseUrl} onChange={e=>setBaseUrl(e.target.value)}/>}</Field>
         <Field label={fa?'مدل':'Model'}>{id=><input id={id} dir="ltr" required maxLength={128} value={model} onChange={e=>setModel(e.target.value)} placeholder="model-id"/>}</Field>
-        <Field label={fa?'کلید API':'API key'} hint={provider?.hasApiKey?(fa?'خالی بگذارید تا کلید فعلی حفظ شود.':'Leave blank to keep the existing key.'):undefined}>{id=><input id={id} dir="ltr" type="password" autoComplete="off" maxLength={4096} value={apiKey} onChange={e=>setApiKey(e.target.value)} required={!provider?.hasApiKey}/>}</Field>
+        <Field label={fa?'کلید API':'API key'} {...(provider?.hasApiKey?{hint:fa?'خالی بگذارید تا کلید فعلی حفظ شود.':'Leave blank to keep the existing key.'}:{})}>{id=><input id={id} dir="ltr" type="password" autoComplete="off" maxLength={4096} value={apiKey} onChange={e=>setApiKey(e.target.value)} required={!provider?.hasApiKey}/>}</Field>
       </div>
       <label className="assistant-check"><input type="checkbox" checked={supportsTools} onChange={e=>setSupportsTools(e.target.checked)}/>{fa?'مدل از فراخوانی ابزارها پشتیبانی می‌کند':'Model supports tool/function calling'}</label>
       <label className="assistant-check"><input type="checkbox" checked={enabled} onChange={e=>setEnabled(e.target.checked)}/>{fa?'فعال‌کردن دستیار':'Enable assistant'}</label>
