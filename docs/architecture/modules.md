@@ -12,7 +12,7 @@ The project is a modular monolith. Responsibilities match real source directorie
 | Tax | Dated tax-code definitions and exact quotations | Identity, accounting/trading references |
 | Imports | Transactional contact CSV import | Identity and trading |
 | Documents | Attachment metadata and immutable local blobs | Identity and business references |
-| AI | Provider configuration, bounded tools, approval/audit and business execution | Identity, accounting and trading |
+| AI | Provider configuration, user-owned contextual conversations, bounded tools, structured previews, approval/audit and compound service execution | Identity, accounting and trading |
 | Platform | SQLite, HTTP/server composition, CLI, logging, backup and configuration | Infrastructure and explicit application-service composition |
 
 Ownership does **not** imply that every service has an HTTP endpoint or browser screen. Manufacturing, advanced warehousing, financially valued inventory, statutory taxation, refunds, and external bank execution are not implemented. [Current status](../validation/implementation-status.md) is authoritative for delivered-vs-missing scope.

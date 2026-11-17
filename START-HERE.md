@@ -45,6 +45,10 @@ The CLI prompts for the password securely; it does not accept passwords as shell
 
 For frontend development, run `pnpm run web:dev` separately with the backend running. This uses a local Vite proxy; do not publish the dev server.
 
+## Milestone 4 handoff note — defer execution
+
+The product owner explicitly requested **no dependency installation, builds, tests, or browser execution during Milestone 4**. The commands above are retained as the eventual Milestone 5 bootstrap/acceptance procedure and **were not run** for this source delivery. Start with [AI service](docs/api/ai-service.md), [AI autonomy](docs/ai/autonomy.md), and [assistant UX](docs/ux/assistant-workspace.md). Verify the new conversation schema, bound record tools, compound financial command, UI drawer, provider controls, and existing test contracts during Milestone 5. Do not use real business records before the acceptance gate is complete.
+
 ## 5. Agent engineering requirements
 
 Use the established module boundaries. All new source is strict `.ts` / `.tsx`. Design a complete vertical workflow, including authorization, database constraints, UI states and accessibility, and accounting regression tests. There is no old-database migration pathway: this is a fresh product with one initial migration.
@@ -53,4 +57,4 @@ Run `pnpm run verify`, `pnpm run web:check`, `pnpm run web:build` and appropriat
 
 ## 6. Current unfinished release gates
 
-Browser build and real interaction testing after the shell redesign, fiscal close, FX settlements, valued stock, full refunds, tax journal posting, live-provider AI and multi-step agent execution, Drizzle decision, and regulatory sign-off. See [open work](docs/roadmap/open-work.md). Do not declare production-ready because an API responds successfully.
+Browser build and real interaction testing after the shell redesign, fiscal close, FX settlements, valued stock, full refunds, tax journal posting, live-provider acceptance for the contextual assistant and general multi-action agent execution, Drizzle decision, and regulatory sign-off. See [open work](docs/roadmap/open-work.md). Do not declare production-ready because an API responds successfully.

@@ -1,54 +1,57 @@
-# AI application service and HTTP adapter (implemented backend)
+# AI assistant — application service and HTTP contract
 
-**Status:** This is a framework-independent SQLite-backed AI operations service with an authenticated HTTP adapter **mounted when `APP_AI_MASTER_KEY_BASE64` is configured**. A React assistant screen exists in source but its production build and live-provider acceptance have not passed. `src/modules/ai/service.ts` owns orchestration and approval; `src/modules/ai/tools.ts` owns typed service calls. The AI model never receives database access, a session token, or the provider API key.
+**Implementation: source present; not yet installed, compiled, exercised, or release-certified for this milestone.** The company-only schema is in `migrations/0001_initial.sql`. It is a fresh-product baseline; there are no legacy migrations or compatibility adapters.
 
-## Construction and secret ownership
+## Architecture
 
-`createAiService(db, { masterKey, fetcher?, clock?, timeoutMs? })` requires a **random 32-byte encryption key** supplied by trusted operator configuration, separately from the SQLite database and backups. Use a persisted secure secret source in a real deployment; do not generate a new key on every restart. Losing the key makes encrypted provider credentials unusable. Do not log, send through CLI arguments, persist in a database, or commit the master key. Credential encryption uses AES-256-GCM with the company ID as associated data; rotation of the master key is a future operational requirement.
+The assistant is an **optional, authorized interface to the same accounting/trading services used by the manual UI**, not a parallel ledger. `src/modules/ai/service.ts` owns persisted conversations, provider orchestration, user-scoped actions, policy and audit. `tools.ts` declares/validates operations and delegates to accounting and trading. `context.ts` checks any record selected in the UI against current company and read permissions. `presentation.ts` generates deterministic operation previews and links. The service is independent of React. The HTTP adapter is `src/platform/http/ai-handler.ts`, mounted only when `APP_AI_MASTER_KEY_BASE64` is present.
 
-The authorized **company administrator** configures `baseUrl`, `model`, `apiKey`, `supportsTools`, and `enabled` with `configureProvider`. `getProvider` deliberately never returns plaintext credentials. Provider configuration is disabled until deliberately enabled. Only HTTPS URLs are permitted, except loopback HTTP for local model servers. Cross-host SSRF and deployment egress controls require host-level network policy in production.
+A user belongs to exactly one company. The session resolves that company; no company picker, tenant slug, tenant token, or cross-company assistant. Conversation history belongs to the signed-in **user**, not all company staff. The model receives neither the user's session token nor database connections or provider credentials.
 
-## Use cases
+## Provider and secrets
 
-| Service method | Scope | Description |
+- The operator supplies a persistent random 32-byte master key via `APP_AI_MASTER_KEY_BASE64` outside source control; losing it prevents decryption of saved credentials. The key must be protected separately from backups.
+- A company administrator configures an OpenAI-compatible base URL, model, encrypted API key, tool-support flag and enabled status under Settings → AI. GET never exposes the API key. HTTPS is required except for local loopback endpoints.
+- A company administrator sets `autoDrafts` (default `true`) and `autoPost` (default `false`). Enabling either does **not** grant privileges beyond the invoking user's roles. The per-turn `executionMode` must also be `auto` to execute without review. Providers with no tool-calling support can answer general text but cannot perform business operations.
+- Read tools transmit permitted, bounded records to the configured provider. The interface discloses this privacy boundary. External provider storage/retention, egress filtering, budgets and production security review require separate acceptance.
+
+## Operations
+
+Read-only tools: `list_contacts`, `get_contact`, `list_accounts`, `financial_summary`, `trial_balance`, `general_ledger`, `list_invoices`, `get_invoice`, `list_payments`, `get_payment`.
+
+Existing controlled business tools: `create_contact`, `create_invoice`, `post_invoice`, `create_payment`, `post_payment`, `allocate_payment`.
+
+New atomic commands:
+
+- `record_trade`: record and post a **non-stock sale or purchase**, with optional immediate recorded receipt/payment and allocation to that invoice. It uses company posting defaults. One validated outer SQLite transaction commits or rolls back the complete operation. The user-visible preview shows lines, exact totals, amount paid and balance remaining.
+- `record_settlement`: record/post a receipt or payment and, if given an existing posted invoice, allocate as much of the recorded amount as eligible. Any remaining payment stays unapplied. This only **records** an already-occurring payment; it does not initiate an external bank transfer.
+
+The model may use up to five read/discovery rounds and then propose **one application command per turn**. This is not a general-purpose autonomous agent, unlimited planner, or arbitrary sequence of independent financial writes. Atomic compound commands cover important common workflows without fragile chains of model-controlled journal writes. Currency amounts are exact minor-unit strings; dates are ISO calendar dates. IRR↔Toman must be explicitly converted; do not assume all display amounts are IRR. No inventory valuation, FX settlement, tax posting, general bank integration, period closing, reversals, bulk corrections or unrestricted SQL is exposed to AI.
+
+## Conversation behavior
+
+- `createConversation`, `listConversations`, `getConversation`, `archiveConversation`: durable company/user-scoped threads.
+- `runTurn`: accept `message`, stable `clientRequestId`, optional `conversationId`, validated page/record context and `executionMode`. Idempotent replays return the original result; conflicting reuse fails.
+- `getTurn`, `listTurns`: inspect status, user message, reply, safe action preview, action state and record links. User prompts **are persisted** as conversation history, and a bounded portion is transmitted to the configured model. Do not falsely claim otherwise.
+- `approveAction`, `rejectAction`: fingerprint-bound exact proposal, same user and current company, permission recheck, 15-minute expiration. Approval calls validated application services inside transaction and records audited outcome; rejection makes no financial change.
+- Prior successful operation IDs (and only generated application record identifiers) are reintroduced into the next model context, allowing follow-ups such as “What remains due on that invoice?” without inventing IDs. Selected-page context is validated against company and read permission before use. Record details must be queried using the corresponding authorized tool.
+- Turns are limited to 20 new requests per user per rolling minute. Tool payload, result and provider response sizes are bounded. Read-only discovery is permission-filtered. One pending tool approval per conversation blocks overlapping operations. A provider timeout has no business side effects before a command is accepted.
+
+**Unfinished failure path:** An interrupted provider request can leave a `processing` turn in the database. Automated stale-turn reconciliation and operator recovery, privacy retention/erasure policy, provider cost budgets, real-world currency ambiguity acceptance and live endpoint certification belong to Milestone 5; never automatically replay an uncertain financial command.
+
+## HTTP surface
+
+Authenticated, cookie/CSRF/same-origin restricted; company always comes from the server session:
+
+| Method | Endpoint | Purpose |
 |---|---|---|
-| `configureProvider` / `getProvider` | `ai.configure` (company) | Configure/redact AI connection |
-| `setPolicy` | `ai.policy` (company) | Configure `autoDrafts` and `autoPost` |
-| `getPolicy` | `ai.use` | Inspect company autonomy policy |
-| `runTurn` | `ai.use` | Answer, run scoped read tools, or propose/execute **one mutation** |
-| `getTurn` / `listTurns` | `ai.use` and requesting user | Read turn, proposal, preview, result |
-| `approveAction` | `ai.execute` and same user | Execute exact proposal after fingerprint, expiry and permission checks |
-| `rejectAction` | `ai.use` and same user | Reject pending proposal without side effects |
+| GET / PUT | `/api/ai/provider` | Redacted configuration / configure provider (admin) |
+| GET / PUT | `/api/ai/policy` | Read / configure AI autonomy policy |
+| GET / POST | `/api/ai/conversations` | List / create conversations |
+| GET / DELETE | `/api/ai/conversations/:id` | Conversation detail with turns / archive |
+| GET / POST | `/api/ai/turns` | List recent turns / send a turn |
+| GET | `/api/ai/turns/:id` | Fetch single turn and safe preview |
+| POST | `/api/ai/actions/:id/approve` | Execute fingerprint-bound proposal |
+| POST | `/api/ai/actions/:id/reject` | Cancel pending proposal |
 
-`runTurn` accepts `message`, a **caller-generated stable** `clientRequestId`, `companyId`, a session token, and `executionMode` of `review` (default) or `auto`. `executionMode` is supplied by a trusted, CSRF-protected user interaction, **never by the model**. Reusing the request ID with the same message returns the existing turn; changing the message/policy mode with that ID fails. In-flight requests may return `processing`; callers must inspect the turn rather than launch a second mutation. If a crash leaves `processing` status, no automatic replay occurs. Operator reconciliation and recovery are future operational work.
-
-Provider credentials and the complete original user prompt are not saved in turn logs. A SHA-256 prompt fingerprint, provider response summary, typed operation preview, structured execution result, and bounded audit entries are persisted. This is **single-turn** orchestration; there is not yet persistent chat context, multi-action planning, async jobs, provider cost accounting, or data-retention management.
-
-## Autonomy defaults
-
-- Read-only tools (contacts, accounts, ledger/trial balance, invoices, payments) run automatically if the user possesses the underlying read permission.
-- Draft creation (`create_contact`, `create_invoice`, `create_payment`) runs automatically **only** when `executionMode=auto`, `ai.execute` and corresponding business permissions are present, and `autoDrafts=true` (default).
-- Posting and settlement (`post_invoice`, `post_payment`, `allocate_payment`) require a review by default. Auto-post requires **both** `executionMode=auto` for that request and company `autoPost=true`, with current posting permissions. Configuring it is a separate privileged company action.
-- Every model-proposed mutation is strictly decoded, validated, persisted as a proposed action, and executed through the **existing trading service**; financial mutations are not generated directly by the model. Approval is tied to a SHA-256 action fingerprint and expires after 15 minutes.
-- Administrative actions, period closing, reversals, arbitrary SQL, external bank transfers, arbitrary URLs, and privilege changes **do not have AI tools**.
-- **Exactly one mutation per turn.** Read-only discovery may precede it; multi-step purchase-plus-payment execution is not atomic in this version and is *not* claimed as supported. The user may issue separate turns. A future explicit compound application use case should own combined financial transactions.
-
-Approval/execution is atomic with the existing trading service's database transaction. Nested operations use SQLite savepoints inside the outer AI action transaction, so failure rolls back both the financial mutation and completion record. The failed outcome is separately audited without leaking credentials or raw model output. The database remains the authoritative financial source. Retry-safe domain request keys are derived from the persisted action ID, not chosen by the model.
-
-## Provider capability and failure handling
-
-The adapter uses OpenAI-compatible `POST {baseUrl}/chat/completions`, with optional `tools` and `tool_choice`. `supportsTools=false` limits the endpoint to general read-only text conversation without business tools. There is a configured request timeout (default 15s), response-size bound, a maximum of 4 tool rounds and 8 provider tool calls per round, and 20 new turns per user per rolling minute (HTTP 429 on excess). Malformed output and unknown tools fail closed. Provider HTTP errors are classified without copying provider error bodies into logs.
-
-Only mock providers were used in the tests. Specific hosted/local endpoint compatibility, rate limiting, billing/cost measurement, multi-model capability negotiation, TLS certificates, network timeouts and production deployment **remain unverified**.
-
-## HTTP adapter (conditionally mounted)
-
-`createAiHttpHandler(identity, ai)` handles:
-
-- `GET/PUT /api/ai/provider`
-- `GET/PUT /api/ai/policy?companyId=<uuid>` (PUT receives the company ID in JSON)
-- `GET/POST /api/ai/turns?companyId=<uuid>`
-- `GET /api/ai/turns/<uuid>?companyId=<uuid>`
-- `POST /api/ai/actions/<uuid>/approve` / `reject`
-
-It uses the same cookie, CSRF token and same-origin policy as the existing identity handler. No bearer tokens in URL parameters, no public endpoint, no remote key disclosure. The Node server mounts it only when the master key is configured. For LAN access use a trusted-origin HTTPS reverse proxy; browser E2E and live-provider testing remain mandatory.
+All mutation requests use CSRF tokens and permission checks. Existing record tools enforce company scope; client-provided IDs or page context do not constitute authority. Source implementation is not evidence of browser execution until Milestone 5 acceptance is performed.

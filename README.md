@@ -12,7 +12,7 @@ The repository contains a SQLite-backed accounting and business service, Node HT
 | Accounting | One company ledger, chart, periods, configurable posting defaults, integer-money journals, immutable posting/reversal and reconciled ledger reporting |
 | Business operations | Contacts, non-stock multi-line sales/purchases, atomic invoice/payment posting, partial allocations, restricted credit notes |
 | Extensions | Quantity inventory, effective-dated tax codes, CSV contacts, company-owned attachments, selected reports |
-| AI | Optional provider, permission-filtered tools, approval rules, and audit (currently limited to one mutation per turn) |
+| AI | Optional contextual assistant, user-owned conversations, bounded read tools, atomic purchase/sale with optional payment, settlement commands, approval cards, role-scoped execution and audit (integration unverified) |
 | Interface | Username/password sign-in; grouped responsive shell, bilingual RTL/LTR navigation, keyboard page switcher; multi-line invoice entry, partial settlement, contact records and date-filtered account ledger (browser acceptance pending) |
 | Operations | Complete DB+attachment backups, migrations, diagnosis, local HTTP server |
 
@@ -50,4 +50,4 @@ Read [architecture](docs/architecture/system.md), [authorization](docs/security/
 
 ## Verification and release caveats
 
-`pnpm run verify` covers the backend and tools. `pnpm run web:check` and `pnpm run web:build` must pass on a connected machine, followed by browser E2E, Persian RTL/accessibility, Node 24/26, and Windows/macOS validation. Do **not** treat passing backend tests as browser or statutory/accounting certification. Full FX settlement, valued inventory, comprehensive refunds, tax posting, fiscal close, and autonomous multi-step AI remain later work.
+`pnpm run verify` covers the backend and tools. `pnpm run web:check` and `pnpm run web:build` must pass on a connected machine, followed by browser E2E, Persian RTL/accessibility, Node 24/26, and Windows/macOS validation. Do **not** treat passing backend tests as browser or statutory/accounting certification. Full FX settlement, valued inventory, comprehensive refunds, tax posting, fiscal close, and unrestricted autonomous multi-action planning remain later work. The new contextual AI workspace and atomic compound commands still require provider/browser acceptance.

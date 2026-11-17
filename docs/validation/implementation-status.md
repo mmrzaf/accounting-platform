@@ -21,6 +21,13 @@
 
 ## AI and release
 
-The current AI has permission-filtered tools and policy-based approvals, but not persistent contextual conversations or multi-step compound workflow autonomy. Release still requires frozen frontend dependencies, actual browser typechecking/build and E2E, Node 24 and Windows/macOS validation, operational restore drills and financial/regulatory review.
+## Milestone 4 — Contextual AI workspace (source-level completion)
+
+- Added: user-owned persistent conversations, contextual assistant page and side panel, authorized read tools for current records, business-friendly operation previews, approval/rejection, provider and policy settings, record deep links and bounded historical context.
+- Added: validated atomic non-stock sale/purchase and optional part-payment with allocation, plus a standalone receipt/payment and optional settlement command. All financial mutations remain in application services; there is no direct model ledger access or external bank transfer.
+- Source is **not tested, installed, built or executed for Milestone 4**, per product-owner instruction. Existing AI tests need deferred contract verification. No claims about real-model performance, RTL accessibility or runtime correctness can be made yet.
+- Still limited: one compound business command per assistant turn rather than an unrestricted autonomous planner. Provider-interruption reconciliation, privacy retention/erasure and live model acceptance are release gates.
+
+Release still requires frozen frontend dependencies, actual backend and browser typechecking/build and E2E, Node 24 and Windows/macOS validation, operational restore drills and financial/regulatory review.
 
 See [remaining work](../roadmap/open-work.md) and [release gates](release-gates.md).
