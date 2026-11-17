@@ -14,7 +14,7 @@ function run(cwd: string, ...args: string[]) {
   return { ...child, response }
 }
 
-test('CLI setup/migrate/status/check/backup/verify/restore through JSON interface', () => {
+test('CLI setup/migrate/status/check/complete backup/verify/restore through JSON interface', () => {
   const cwd = mkdtempSync(join(tmpdir(), 'acct-cli-'))
   try {
     assert.equal(run(cwd, 'setup').status, 0)
@@ -29,11 +29,12 @@ test('CLI setup/migrate/status/check/backup/verify/restore through JSON interfac
     assert.equal(run(cwd, 'db:check').response.ok, true)
     const snapshot = run(cwd, 'backup:create')
     assert.equal(snapshot.status, 0, snapshot.stderr)
-    assert.equal(snapshot.response.scope, 'sqlite-only')
+    assert.equal(snapshot.response.scope, 'database-and-attachments')
     assert.equal(run(cwd, 'backup:verify', '--source', snapshot.response.path).response.ok, true)
     const dest = join(cwd, 'restore.sqlite')
-    assert.equal(run(cwd, 'backup:restore', '--source', snapshot.response.path, '--target', dest).status, 0)
-    assert.notEqual(run(cwd, 'backup:restore', '--source', snapshot.response.path, '--target', dest).status, 0)
+    const attachments = join(cwd, 'restore-attachments')
+    assert.equal(run(cwd, 'backup:restore', '--source', snapshot.response.path, '--target', dest, '--target-attachments', attachments).status, 0)
+    assert.notEqual(run(cwd, 'backup:restore', '--source', snapshot.response.path, '--target', dest, '--target-attachments', join(cwd, 'other-attachments')).status, 0)
   } finally { rmSync(cwd, { recursive: true, force: true }) }
 })
 
