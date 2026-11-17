@@ -6,7 +6,9 @@ import { uuid } from './validation.ts'
 /** Internal read-only accounting references for authenticated business services. */
 export function createAccountingReferenceReader(db: DatabaseSync) {
   function book(actor: Actor, companyId: string) {
-    return rowAs<{ base_currency: string }>(db.prepare('SELECT base_currency FROM accounting_books WHERE organization_id=? AND company_id=?')
+    return rowAs<{ base_currency: string; timezone: string; decimals: number }>(db.prepare(`SELECT b.base_currency,b.timezone,c.decimals FROM accounting_books b
+      JOIN accounting_currencies c ON c.organization_id=b.organization_id AND c.company_id=b.company_id AND c.code=b.base_currency
+      WHERE b.organization_id=? AND b.company_id=?`)
       .get(actor.organizationId, companyId)) ?? missing()
   }
   function account(actor: Actor, companyId: string, accountId: string, category: string) {
