@@ -11,7 +11,7 @@ A user belongs to exactly one company. The session resolves that company; no com
 ## Provider and secrets
 
 - The operator supplies a persistent random 32-byte master key via `APP_AI_MASTER_KEY_BASE64` outside source control; losing it prevents decryption of saved credentials. The key must be protected separately from backups.
-- A company administrator configures an OpenAI-compatible base URL, model, encrypted API key, tool-support flag and enabled status under Settings → AI. GET never exposes the API key. HTTPS is required except for local loopback endpoints.
+- A company administrator configures an OpenAI-compatible base URL, model, encrypted API key, tool-support flag and enabled status under Settings → AI. GET never exposes the API key. HTTPS is required except for local loopback endpoints. Optional [outbound HTTP proxy](../ai/http-proxy.md) configuration is installation-local (`APP_AI_PROXY_URL`) and applies only to AI provider transport.
 - A company administrator sets `autoDrafts` (default `true`) and `autoPost` (default `false`). Enabling either does **not** grant privileges beyond the invoking user's roles. The per-turn `executionMode` must also be `auto` to execute without review. Providers with no tool-calling support can answer general text but cannot perform business operations.
 - Read tools transmit permitted, bounded records to the configured provider. The interface discloses this privacy boundary. External provider storage/retention, egress filtering, budgets and production security review require separate acceptance.
 

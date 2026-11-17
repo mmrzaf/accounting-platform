@@ -27,6 +27,18 @@ export function loadLocalEnv(path: string = resolve(process.cwd(), '.env')) {
   return false
 }
 
+/** The proxy is local installation configuration, never user-controlled or sent to the browser. */
+export function parseAiProxyUrl(raw: string | undefined): string | undefined {
+  if (raw === undefined) return undefined
+  let url: URL
+  try { url = new URL(raw) } catch { throw new ConfigurationError('APP_AI_PROXY_URL must be an HTTP proxy URL') }
+  if (url.protocol !== 'http:' || !url.hostname || url.username || url.password ||
+      url.pathname !== '/' || url.search || url.hash) {
+    throw new ConfigurationError('APP_AI_PROXY_URL must be an HTTP proxy URL without credentials or a path')
+  }
+  return url.origin
+}
+
 export function parseConfig(env: NodeJS.ProcessEnv = process.env, cwd: string = process.cwd()) {
   const port = Number(env['APP_PORT'] ?? 3000)
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
@@ -46,5 +58,6 @@ export function parseConfig(env: NodeJS.ProcessEnv = process.env, cwd: string = 
       (parsed.protocol === 'http:' && !['localhost', '127.0.0.1', '[::1]'].includes(parsed.hostname))) {
     throw new ConfigurationError('APP_PUBLIC_ORIGIN must be HTTPS or loopback HTTP with no path')
   }
-  return Object.freeze({ port, bindHost, dbPath, backupDir, attachmentDir, publicOrigin })
+  const aiProxyUrl = parseAiProxyUrl(env['APP_AI_PROXY_URL'])
+  return Object.freeze({ port, bindHost, dbPath, backupDir, attachmentDir, publicOrigin, aiProxyUrl })
 }

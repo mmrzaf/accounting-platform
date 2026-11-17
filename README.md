@@ -36,7 +36,7 @@ pnpm run app:bootstrap -- --name "Example Company" --admin-username owner --admi
 pnpm run app:serve
 ```
 
-Enter the administrator password when prompted. Visit `http://127.0.0.1:3000` and sign in with **username and password only**. The default listener is loopback-only. The browser lockfile must be reviewed and committed on a connected machine, followed by frozen installations. The web build must be validated on your machine. The first-run dashboard guides book, chart, and fiscal-period setup. Optional AI encryption can be initialized with `pnpm run app:ai-initialize`; configure the model in Settings and restart the server. For actual machine setup, use [START-HERE](START-HERE.md).
+Enter the administrator password when prompted. Visit `http://127.0.0.1:3000` and sign in with **username and password only**. The default listener is loopback-only. The browser lockfile must be reviewed and committed on a connected machine, followed by frozen installations. The web build must be validated on your machine. The first-run dashboard guides book, chart, and fiscal-period setup. Optional AI encryption can be initialized with `pnpm run app:ai-initialize`; configure the model in Settings and restart the server. For Groq through a local HTTP proxy, see [AI proxy setup](docs/ai/http-proxy.md). For actual machine setup, use [START-HERE](START-HERE.md).
 
 **Important:** Use `pnpm run setup` rather than `pnpm setup`; the latter invokes pnpm's own built-in setup operation.
 

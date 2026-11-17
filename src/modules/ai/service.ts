@@ -7,6 +7,7 @@ import { AccountingError } from '../accounting/errors.ts'
 import { encryptApiKey, decryptApiKey, validateMasterKey } from './credentials.ts'
 import { aiError, AiError } from './errors.ts'
 import { completeChat, validatedBaseUrl } from './provider.ts'
+import type { AiFetcher } from './provider.ts'
 import type { ChatMessage } from './provider.ts'
 import { makeToolExecutor, validateToolArguments } from './tools.ts'
 import { decodeArgs, json, required, sha } from './validation.ts'
@@ -53,7 +54,7 @@ const validId=(id:string)=>uuidPattern.test(id)?id:aiError('INVALID_INPUT','Inva
 
 /** Durable, user-owned conversations and auditable command execution, independent of the UI. */
 export function createAiService(db:DatabaseSync, options:{
-  masterKey:Uint8Array;clock?:()=>Date;fetcher?:typeof fetch;timeoutMs?:number
+  masterKey:Uint8Array;clock?:()=>Date;fetcher?:AiFetcher;timeoutMs?:number
 }) {
   const master=validateMasterKey(options.masterKey)
   const clock=options.clock??(()=>new Date())

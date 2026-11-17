@@ -54,7 +54,7 @@ pnpm run app:ai-initialize  # safely creates APP_AI_MASTER_KEY_BASE64 in your lo
 pnpm run app:serve          # restart the server if it is already running
 ```
 
-Sign in as an administrator and open **Settings → AI & privacy** to enter the OpenAI-compatible base URL, model, and provider API key. The browser never receives saved provider secrets. Back up the private `.env` file securely; the AI encryption key must remain available to decrypt configured provider credentials. If AI is not configured, the assistant displays a helpful setup state rather than accepting unusable requests. The core accounting application is independent of AI.
+Sign in as an administrator and open **Settings → AI & privacy** to enter the OpenAI-compatible base URL, model, and provider API key. The browser never receives saved provider secrets. Back up the private `.env` file securely; the AI encryption key must remain available to decrypt configured provider credentials. If AI is not configured, the assistant displays a helpful setup state rather than accepting unusable requests. The core accounting application is independent of AI. If Groq or another API provider requires a local HTTP proxy, set `APP_AI_PROXY_URL=http://127.0.0.1:1080` in `.env` and restart the server; see [AI proxy setup](docs/ai/http-proxy.md).
 
 
 ## 4A. Actual browser acceptance (Milestone 5)

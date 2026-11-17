@@ -1,6 +1,8 @@
 import { aiError } from './errors.ts'
 import { required } from './validation.ts'
 
+export type AiFetcher = (url: string, init: RequestInit) => Promise<Response>
+
 export interface ToolDefinition {
   type: 'function'
   function: { name: string; description: string; parameters: Record<string, unknown> }
@@ -26,7 +28,7 @@ interface CompletionResponse {
 }
 /** Small fetch-based OpenAI Chat Completions adapter; no provider SDK dependency or global configuration. */
 export async function completeChat(input: {
-  fetcher: typeof fetch; baseUrl: string; apiKey: string; model: string; messages: ChatMessage[]; tools: ToolDefinition[];
+  fetcher: AiFetcher; baseUrl: string; apiKey: string; model: string; messages: ChatMessage[]; tools: ToolDefinition[];
   timeoutMs?: number
 }): Promise<ProviderResult> {
   const controller = new AbortController()

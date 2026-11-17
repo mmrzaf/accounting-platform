@@ -7,6 +7,7 @@ import { createTradingService } from '../../modules/trading/service.ts'
 import { createAccountingService } from '../../modules/accounting/service.ts'
 import { createBusinessReports } from '../../modules/reports/service.ts'
 import { createAiService } from '../../modules/ai/service.ts'
+import { createAiProxyFetcher } from '../http/ai-proxy-transport.ts'
 import { createInventoryService } from '../../modules/inventory/service.ts'
 import { createTaxService } from '../../modules/tax/service.ts'
 import { createContactImportService } from '../../modules/imports/contacts.ts'
@@ -27,6 +28,8 @@ export interface ApplicationOptions {
   publicOrigin: string | (() => string)
   /** 32-byte key; never store in the database or repository. Required to enable AI HTTP operations. */
   aiMasterKey?: Uint8Array
+  /** Optional HTTP CONNECT proxy for outbound AI provider requests only. */
+  aiProxyUrl?: string
 }
 /** Composition root for the local Node server and SPA HTTP adapters. */
 export function createApplication(options: ApplicationOptions) {
@@ -45,7 +48,8 @@ export function createApplication(options: ApplicationOptions) {
     const extensionsHttp = createExtensionsHttpHandler(identity, trading, createInventoryService(db), createTaxService(db),
       createContactImportService(db), createDocumentService(db, options.attachmentDirectory ?? resolve(dirname(options.databasePath), '../attachments')))
     const businessHttp = createBusinessHttpHandler(identity, trading, accounting, reports)
-    const aiHttp = options.aiMasterKey ? createAiHttpHandler(identity, createAiService(db, { masterKey: options.aiMasterKey })) : null
+    const aiHttp = options.aiMasterKey ? createAiHttpHandler(identity, createAiService(db, { masterKey: options.aiMasterKey,
+      ...(options.aiProxyUrl ? { fetcher: createAiProxyFetcher(options.aiProxyUrl) } : {}) })) : null
     const web = options.webDistDirectory ? createStaticWebHandler(options.webDistDirectory) : null
     const handler = async (request: Request) => {
       const path = new URL(request.url).pathname

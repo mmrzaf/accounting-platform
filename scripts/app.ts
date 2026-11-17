@@ -129,7 +129,8 @@ async function main(argv: string[]) {
     const application = createApplication({ databasePath: dbPath, migrationDirectory: migrations, publicOrigin: config.publicOrigin,
       attachmentDirectory: config.attachmentDir,
       webDistDirectory: resolve(process.cwd(), 'web/dist'),
-      ...(key ? { aiMasterKey: key } : {}) })
+      ...(key ? { aiMasterKey: key } : {}),
+      ...(config.aiProxyUrl ? { aiProxyUrl: config.aiProxyUrl } : {}) })
     try {
       await listen(application.server, config.bindHost, config.port)
     } catch (error) {
