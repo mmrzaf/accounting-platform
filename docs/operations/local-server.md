@@ -1,32 +1,26 @@
-# Local HTTP server (interim adapter)
+# Local HTTP API
 
-The repository now has a runnable HTTP host for the existing business services, implemented in TypeScript with Node's built-in `http` module. This host **is not the final TanStack Start / React deployment**. Its transport adapters, authorization tests and recovery tools are intended to be reused or migrated when the full framework stack is installed.
+`src/platform/server/` provides a Node HTTP listener and application composition root. It mounts authenticated identity, trading, financial-reporting, and optionally AI endpoints. The HTTP API is an implemented transport layer; **it is not a React/TanStack browser application**.
 
-## Start a private installation
+## Operation
 
-1. Install the pinned dev dependencies on a connected machine, use Node 24 as the primary supported runtime (Node 22.16+ and Node 26 are targets). The offline validation uses Node 22.16 only.
-2. `npm run setup`, then `npm run db:migrate`, then `npm run app:bootstrap -- --slug example --name Example --admin-username owner --admin-name Owner` (password entered securely).
-3. `npm run app:serve` starts the HTTP listener; by default it binds to `127.0.0.1:3000`.
-4. `GET http://127.0.0.1:3000/health/live` checks the listener; `/health/ready` checks basic database availability. Both intentionally expose no financial details.
+```sh
+corepack pnpm setup
+corepack pnpm db:migrate
+corepack pnpm app:bootstrap -- --slug example --name "Example" --admin-username owner --admin-name "Owner"
+corepack pnpm app:serve
+```
 
-The server exits when it receives SIGTERM or SIGINT, closing its database connection. The `server:start` CLI refuses pending migrations or a missing database.
+Default listener: `127.0.0.1:3000`. `GET /health/live` probes the listener, and `GET /health/ready` checks basic database availability. API route contracts are in `docs/api/`. The server refuses missing or pending migrations, and a failed listen attempt closes its database connection.
 
-### LAN access
+## Trust and network boundary
 
-Never bind this temporary plain HTTP host directly to a LAN interface. Its listener **refuses `0.0.0.0` and other non-loopback addresses**. To use it on a LAN, deploy a separate, appropriately configured TLS reverse proxy bound to the LAN, which forwards to the Node loopback listener. Set `APP_PUBLIC_ORIGIN=https://accounting.example.internal` to the exact URL users see, including an external port if needed. That origin controls Host validation, same-origin checks and Secure session cookies.
+The configuration permits only loopback `APP_BIND_HOST` values. LAN access requires a separate, correctly configured HTTPS reverse proxy. Set `APP_PUBLIC_ORIGIN` to the exact public origin seen by users (including any nondefault port), and require matching `Host` and same-origin requests. Forwarded-host and forwarded-protocol headers do not grant trust. Cookies are HttpOnly and SameSite=Strict, with `Secure`/`__Host-` on HTTPS. Mutating requests require a valid CSRF token and server-side role authorization.
 
-This host deliberately does not trust `X-Forwarded-Host`, `X-Forwarded-Proto`, or other client-controlled proxy headers. The reverse proxy must enforce HTTPS, correct Host routing and TLS certificates, and restrict backend access to the loopback address. A reverse proxy does not magically make arbitrary HTTP LAN binding safe.
+The listener limits request bodies to 16 KiB. As a result, the attachment service is **not** exposed as a generic binary-upload API. Business extensions such as stock, import, and tax configuration are available as TypeScript services, not necessarily as HTTP routes. Do not claim UI/API coverage for features solely because the underlying service exists.
 
-## Security properties
+To enable optional AI endpoints, set `APP_AI_MASTER_KEY_BASE64` to a confidential random 32-byte key encoded in Base64; protect and recover it separately. Live-provider interoperability and network-proxy acceptance are not certified.
 
-- The server reconstructs the Fetch Request URL from a configured canonical origin, **never** from untrusted forwarding headers.
-- Requests with a mismatched `Host` are rejected, and the body is limited to 16 KiB before invoking services.
-- Session cookies are HttpOnly and SameSite=Strict; production HTTPS uses a Secure `__Host-` cookie.
-- Mutations require a live session and CSRF token, and reject cross-origin requests.
-- Module services still independently enforce company isolation and action-level permissions.
-- Posting, settlements and reversals run through existing transactional business services.
-- The AI endpoints are disabled unless the operator supplies `APP_AI_MASTER_KEY_BASE64` (a confidential base64-encoded 32-byte random key). Neither the key nor provider API keys are logged. Protect and back up the master key *separately*; losing it makes existing encrypted provider credentials unreadable.
+## Outstanding release validation
 
-## Not yet delivered
-
-There is **no React interface** or TanStack Start build in this repository. The Node HTTP host is an operational bridge and integration test target, not the endorsed production deployment. Framework dependencies, Drizzle schema mapping, responsive Persian/English UX, browser E2E, Node 24/26 runs, Windows/macOS runs, reverse proxy acceptance tests, and production incident/recovery drills remain open gates.
+The production browser application, Drizzle integration, Node 24/26 and Windows/macOS acceptance tests, browser E2E and accessibility tests, configured reverse-proxy tests, and production security review have not been completed. See [status](../validation/implementation-status.md).

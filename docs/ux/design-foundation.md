@@ -1,9 +1,7 @@
-# UI design foundation — Phase 2
+# UX and localization foundation
 
-`src/ui/styles/tokens.css` establishes neutral light/dark colors, readable text contrast candidates, spacing, form heights, focus rings, and reduced-motion behavior. Tokens are provisional until tested with actual components, including a shadcn/ui integration.
+`src/ui/styles/tokens.css` defines neutral light/dark colors, spacing, focus and reduced-motion tokens. These are **design inputs only**, not evidence of a functioning application UI.
 
-`src/ui/i18n/locale.ts` implements locale direction, exact BigInt integer/money presentation, and Jalali/Gregorian date formatting via `Intl`. Localized strings are not database representations. Rial-to-Toman conversions **must be explicit operations**, never silent formatting side effects.
+`src/ui/i18n/locale.ts` handles Persian/English direction, formatting of exact BigInt monetary amounts, and Gregorian/Jalali date presentation using `Intl`. Canonical database dates and currency amounts are not stored in localized display form. Any Rial-to-Toman conversion must be explicit.
 
-`experiments/ux-preview/ux-preview.html` is an *offline test fixture*, not an app or proposed final transaction screen. It permits manual RTL/LTR comparison without network or dependencies. It deliberately avoids a dashboard and focuses on form labels, mixed-direction amounts, keyboard focus, table readability and responsive widths.
-
-Next UI gate: install React/TanStack Start, verify SSR/hydration, implement accessible primitive inputs/menus/modals, test RTL keyboard navigation, contrast, screen-reader semantics, dark mode, error/empty states and dense accountant tables. No UI quality claim is based on the fixture alone.
+**Unimplemented:** actual React screens, navigation, forms, accessible dialogs and tables, invoice and settlement workflows, responsive RTL/LTR testing, keyboard and screen-reader acceptance, and browser E2E. The final UI must be designed around real accounting workflows—not decorative dashboards.

@@ -1,20 +1,19 @@
-# Local database operations
+# Local database and administrator commands
 
-The Phase 2 administrative CLI exists at `scripts/app.ts`. It uses only Node built-in modules. Commands accept `--json` and `--database PATH` where applicable.
+All commands are invoked through `corepack pnpm <script>` or `node --experimental-strip-types scripts/app.ts <command>`. Add `--json` to get structured output. The installation owns a single SQLite database and attachment root.
 
-| Action | Example | Important behavior |
+| Operation | Script | Behavior |
 |---|---|---|
-| Diagnose | `node scripts/app.ts doctor --json` | Version/config hints, no secret values |
-| Prepare | `node scripts/app.ts setup` | Creates directories only; idempotent |
-| Migrate | `node scripts/app.ts db:migrate` | Atomic, checksummed SQL, safe rerun |
-| Inspect | `node scripts/app.ts db:status` | Rejects altered/unknown migration history |
-| Verify | `node scripts/app.ts db:check` | SQLite integrity/foreign keys |
-| Backup | `node scripts/app.ts backup:create --output ./var/backups` | Consistent SQLite snapshot + SHA-256 manifest |
-| Verify backup | `node scripts/app.ts backup:verify --source ./var/backups/SNAPSHOT.sqlite` | Digest and SQLite integrity |
-| Restore copy | `node scripts/app.ts backup:restore --source SNAPSHOT.sqlite --target ./var/restore.sqlite` | New path only; refuses overwrite |
+| Initialize directories | `setup` | Creates private application directories; does not initialize the database |
+| Diagnose | `app:doctor` | Node version, database presence and configuration summary |
+| Apply migrations | `db:migrate` | Forward-only, checksummed migrations |
+| Inspect migrations | `db:status` | Applied/pending migration status |
+| Check integrity | `db:check` | SQLite integrity and foreign-key verification |
+| Bootstrap | `app:bootstrap` | First organization, company and administrator; secure password prompt |
+| Local recovery | `app:recover-admin` | Privileged administrator password reset, not an HTTP action |
+| Start API | `app:serve` | Loopback-only HTTP service |
+| Create complete backup | `app:backup` | Snapshot database with all referenced attachment files |
+| Verify complete backup | `app:backup-verify` | Check bundle, checksums, SQLite integrity and attachment manifest |
+| Restore complete backup | `app:restore` | New database and attachment paths only; never overwrite |
 
-`--database` uses a local file path. Avoid running a production instance from shared/network storage (SQLite WAL requires local storage). Backup paths should have restricted filesystem permissions and be stored separately from the live database.
-
-**Scope warning:** These snapshot commands currently cover **SQLite only**. They do not yet back up or restore attachments, configuration secrets, or any future object/file storage. They are not a complete production disaster-recovery process. Restoring a live installation requires an offline runbook, coordinated file snapshot, and service shutdown; do not use `backup:restore` as in-place live replacement.
-
-A checksum detects accidental corruption. It does **not** prove authenticity against an attacker who can alter both the backup and its manifest. Signed or authenticated backup manifests and encryption-at-rest are future operational decisions.
+Database migration and backup directories must reside on appropriate local storage. The application intentionally refuses public HTTP binds. See [server operation](local-server.md) and [complete backup specification](complete-backups.md) for flags and safety requirements.

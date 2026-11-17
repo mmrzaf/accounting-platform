@@ -1,27 +1,12 @@
-# Installation, deployment, and recovery baseline
+# Deployment and recovery boundaries
 
-## Runtime assumption
+The current host is a Node HTTP API, one process per installation, backed by a local SQLite WAL database and a managed attachment directory. Node 24 is the primary target; Windows, macOS, Node 24 and Node 26 remain unverified execution environments until the CI matrix is actually run.
 
-Node 24 (primary; supported 22.16+ and 26), one Node.js process per installation on Windows, macOS, or Linux. Local SQLite database file, managed local attachment directory and separate log directory. Bind to localhost by default; LAN sharing requires explicit configuration, TLS, and credentials. Core operations must remain functional without internet. No browser offline-sync in v1.
+- **Network:** bind only to a loopback address. For other machines on a LAN, use an explicitly configured HTTPS reverse proxy forwarding to loopback. Validate its Host/origin behavior and TLS before deployment.
+- **Storage:** local filesystem for WAL database and attachments; never operate SQLite WAL from SMB/NFS shares. Restrict file permissions and backups.
+- **Startup:** explicitly apply migrations and bootstrap administration before starting the server. Startup rejects missing or pending migrations.
+- **Recovery:** use only the single database-and-attachments bundle format. Verify it and restore to new paths; stop the service and reconcile business records before any operational cutover.
+- **Key management:** keep AI credential-encryption master keys in a separately secured operator-managed secret backup. A database backup alone cannot recover this key.
+- **Availability:** backup scheduling, offsite retention, encrypted archival, integrity drills and measured RPO/RTO are operational work, not built-in guarantees.
 
-## SQLite operating rules
-
-- Enable `foreign_keys=ON` and configure journal mode, busy timeout, integrity checks and WAL checkpoint policy per connection.
-- SQLite WAL permits concurrent readers with one writer; keep transactions short and never make network calls in them.
-- Never place an active SQLite WAL database on network filesystems.
-- Do not copy a live `.db` file alone and assume consistency; use online backup API (or equivalent consistent snapshot), coupled with attachment manifest/checksums.
-- Verify restore into a fresh directory and run `integrity_check`, foreign-key checks and application version compatibility checks before serving users.
-
-## CLI design targets
-
-`app init`, `app doctor`, `app db migrate`, `app organization create`, `app company create`, `app user create`, `app backup create|verify|restore`, `app server start`. Phases 2–3 implement an offline administrative subset under `node scripts/app.ts` (`setup`, `doctor`, `db:migrate`, `db:status`, `db:check`, `backup:create`, `backup:verify`, `backup:restore`). Phase 3 adds local organization/company/administrator bootstrap and local-admin password recovery, plus authenticated application-service APIs for staff and companies. Server startup and the frontend remain future integration tasks. See [identity bootstrap](identity-bootstrap.md). See [actual CLI documentation](database-cli.md). Require safe interactive secret input, structured errors, documented exit codes and dry-run for destructive restore.
-
-## Backup consistency considerations
-
-**Attachments exist now, but the CLI still snapshots ONLY the SQLite database. Restoring it alone leaves document references without their blobs. Production attachment deployment is blocked until coordinated backups are implemented.**
-
-Two stores (database + attachments) need a coordinated restore point. Safest first implementation: briefly quiesce attachment writes while generating a database snapshot and a content/checksum manifest. Backups should be signed/hashed and optionally encrypted; maintain recovery instructions and test a complete restore. Target RPO <= 1 hour and RTO <= 4 hours are proposals, not measured guarantees.
-
-## Reliability and threat model
-
-Protect from process crash during posting, disk-full, failed migrations, interrupted backups, disk corruption, accidental deletion, lost credentials, misconfigured LAN exposure, unsafe file downloads and database busy errors. A backup without a verified restore is not treated as recovered capability.
+The API is not a production-released browser application. The complete list of missing release gates is maintained in [implementation status](../validation/implementation-status.md) and [release gates](../validation/release-gates.md).

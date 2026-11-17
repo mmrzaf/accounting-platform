@@ -1,33 +1,15 @@
-# Agent instructions — accounting-platform
+# Contributor and coding-agent instructions
 
-## Non-negotiable rules
+This repository contains financial software. Do not treat a successful compilation as proof of accounting correctness.
 
-1. **TypeScript throughout.** Every application, CLI, test and experiment source must be `.ts` or `.tsx`. Never introduce `.mjs`, `.cjs`, `.js`, or `.jsx` source to bypass package availability. Generated `dist/` output is ignored.
-2. All sources are typechecked together: `npm run check:types`. Do not weaken `strict`, `exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`, or exclusions to silence failures. Unsafe casts require a justified boundary; `src/platform/database/rows.ts` is known temporary infrastructure debt.
-3. Use [module ownership](docs/development/module-boundaries.md), the [decision register](docs/decisions/decision-register.md) and [accounting invariants](docs/accounting/accounting-core.md) before modifying code. `npm run check:boundaries` enforces basic import rules.
-4. Current implementation includes **identity, accounting, trading document/settlement services and bounded business extensions**. An AI operations service and an unmounted AI HTTP adapter now exist. A tested loopback Node HTTP host and business adapter exist; no deployed TanStack Start app, React UI, Drizzle integration, or production-approved HTTP deployment exists. Read [Phase 7 extensions](docs/domain/first-release-extensions.md), [implemented ledger](docs/accounting/implemented-ledger.md), [trading workflow invariants](docs/domain/trading-workflows.md), and [AI service contract](docs/api/ai-service.md) before changing financial or AI logic. Do not assert or simulate passing those gates.
-5. Server-authorized company scope and organization scope cannot be inferred from user-supplied IDs. Transport adapters authenticate then call application services. Never make an AI or React adapter its own authorization authority.
-6. AI model outputs are untrusted; never introduce privileged AI tools, log keys, bypass confirmation policy, or call financial SQL directly from model output. Do not destructively edit posted finance records or use binary floating point for monetary truth in the existing accounting engine. Every critical mutation needs explicit transaction ownership and idempotency.
-7. SQLite migrations are forward-only and checksummed; never silently modify an applied migration. Operator recovery is local CLI-only and must never become an HTTP/AI tool.
-8. Secrets cannot appear in logs, URLs, shell arguments or committed fixtures. The legacy backup is SQLite-only; use and verify the complete bundle backup to cover attachments. Never silently downgrade the recovery scope.
-9. Node 24 primary; Node 22.16+ and Node 26 are compatibility targets. Tests on one runtime do not certify the others.
+1. **Use TypeScript for source and tests.** Do not add JavaScript or `.mjs` source files. Generated build output belongs outside Git.
+2. **Preserve the accounting invariants.** Never mutate posted journal history, use floating-point amounts as financial truth, bypass transactional posting, or accept client-provided organization identity. Read [ledger invariants](docs/accounting/accounting-core.md) before financial changes.
+3. **Respect authorization at the service boundary.** Organization and company access is derived from a live session; role assignments determine permissions. AI gets no privilege of its own.
+4. **Keep module ownership explicit.** Route adapters decode and validate untrusted input; modules implement use cases; persistence remains under controlled access. Read [module dependencies](docs/development/module-boundaries.md).
+5. **Never modify applied migrations.** Add new migrations, verify exact-money constraints, and preserve composite organization/company database references.
+6. **Handle credentials safely.** No keys, passwords, session tokens, or provider credentials in arguments, URLs, repository files, telemetry or logs. Local administrator recovery must remain CLI-only.
+7. **Use only the complete backup format.** Database-only copies do not preserve attachment integrity; verify and periodically restore complete bundles. See [recovery](docs/operations/complete-backups.md).
+8. **Document actual capability, not intent.** There is a Node HTTP API, but no finished React/TanStack UI, live-provider acceptance result, or production release certification. See [implementation status](docs/validation/implementation-status.md).
+9. **Use focused Conventional Commits** (`feat(module): ...`, `fix(module): ...`, `refactor(module): ...`, `test(module): ...`, `docs(module): ...`). Repository author is `mmrzaf <mohammr.farkhonde12@sharif.edu>`.
 
-## Before committing
-
-- Run `npm run verify` (full TypeScript check, source/boundary/docs validation, compiled build, and behavioral tests).
-- Add regression tests for changed behavior including denied and cross-organization cases.
-- Inspect `git diff --check`, `git status --short` and relevant test output.
-- Use **focused Conventional Commits**, never giant commits named `phase 1`, `phase 2`, etc. See [commit conventions](docs/development/commit-conventions.md).
-- Use repository-local author: `mmrzaf <mohammr.farkhonde12@sharif.edu>`.
-- Do not commit generated JavaScript, databases, `node_modules`, backups, logs or secrets.
-
-## Pointers
-
-- [Getting started](docs/development/getting-started.md)
-- [Modules](docs/architecture/modules.md)
-- [HTTP interface](docs/api/identity.md)
-- [Identity recovery](docs/operations/identity-bootstrap.md)
-- [Accounting ledger](docs/accounting/implemented-ledger.md)
-- [Business HTTP](docs/api/business-http.md) and [local server](docs/operations/local-server.md)
-- [Complete backup/restore](docs/operations/complete-backups.md)
-- [Open production validation gates](docs/validation/next-stack-validation.md)
+Before proposing a commit, verify the precise module boundary, add targeted positive/negative/cross-company regression coverage, and normally run `pnpm verify` plus relevant platform checks. **For the current static-only cleanup, verification execution was intentionally deferred at the user's request.** Never claim unrun tests passed.
