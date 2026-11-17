@@ -15,7 +15,7 @@ A single deployable modular monolith. Modules own behavior and their data invari
 | Inventory (optional) | Movements and valuation | Catalogue, accounting posting port |
 | Reports | Ledger-derived and operational projections | Explicit read contracts |
 | Documents | Attachments and secure access | Organization/company scope |
-| AI | Model/provider adapters, context, command execution policy | Application service contracts only |
+| AI (`src/modules/ai/`) | Encrypted provider config, contextual model calls, constrained tools, approval and execution policy | Identity permissions + existing trading/accounting application services |
 | Platform | Database, migrations, configuration, logging, backup, CLI | Infrastructure-only dependencies |
 
 ## Direction rule
@@ -24,7 +24,7 @@ Presentation and transport -> application use cases -> domain invariants and por
 
 ## Transaction ownership
 
-Application use cases own the transaction. Accounting is called as a local service inside the same transaction as the source-document state change and payment allocation. Avoid transaction nesting with ambiguous commit behavior. Posting request idempotency checks and resulting entries must commit atomically.
+Application use cases own the transaction. Accounting is called as a local service inside the same transaction as the source-document state change and payment allocation. The AI orchestrator owns an outer action transaction and existing services use uniquely named SQLite savepoints for nested atomic work. Avoid independent commits inside an AI execution. Posting request idempotency checks and resulting entries must commit atomically.
 
 ## Suggested eventual layout (not scaffolding)
 

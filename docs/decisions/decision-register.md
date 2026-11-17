@@ -32,6 +32,7 @@ This is the source of truth for decision **status**. `CONFIRMED` means explicitl
 | D-26 | Phase 3 foundation | SQLite identity, organization/company-scoped RBAC, sessions, security audit, operator bootstrap and HTTP adapter | IMPLEMENTED-PARTIAL | Offline services tested; TanStack Start/UI/OS/runtime integration blocked |
 | D-27 | Accounting core | Company chart, fiscal periods, immutable balanced posting/reversals, ledger projections | IMPLEMENTED-PARTIAL | Standalone SQLite service and invariants tested; formal reports and UI pending |
 | D-28 | Trading workflow | Base-currency non-stock invoices, payments/receipts, append-only allocations, controlled reversals | IMPLEMENTED-PARTIAL | Backend service tested; UI, source-document FX, returns and tax work remain |
+| D-29 | AI operations (initial subset) | Permission-filtered tools, per-company autonomy policy, durable approval, encrypted org provider config | IMPLEMENTED-PARTIAL | Single-turn, one mutation max; mock-tested backend+HTTP adapter only; no UI/live provider/compound workflows |
 
 ## Approval required before irreversible domain schema and financial features
 

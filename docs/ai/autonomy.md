@@ -1,5 +1,7 @@
 # AI operating model and autonomy policy
 
+**Implementation status:** [The AI application service and tool contracts](../api/ai-service.md) implement a deliberately bounded, single-turn subset of this product vision. Compound workflows and more advanced autonomous planning remain design goals, not currently shipped behavior.
+
 **Confirmed product direction:** high autonomy. AI is a primary operational interface, not merely a chatbot; it must still work through validated application services with the exact user identity/permissions of the request.
 
 ## Boundaries
