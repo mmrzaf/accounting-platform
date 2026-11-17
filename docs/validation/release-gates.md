@@ -9,13 +9,13 @@ These are required **before a production release** and are not certified by the 
 3. Use a single normal `pnpm verify` for static checks, unit/integration tests, production build and security smoke. Do not require a particular shell for portable scripts.
 4. Validate `better-sqlite3` native package install, prebuilt binary availability, fallback compile requirements and Node version compatibility on Windows x64, macOS (arm64/x64), and Linux x64.
 
-## TanStack Start integration
+## React / TanStack Router / Vite integration
 
-- Use official app template and documented Vite/Nitro adapter (or reconsider if builder version has changed); install with locked dependencies.
+- Install the existing `web/` React/TanStack Router SPA with a reviewed, committed browser pnpm lockfile; build with Vite in CI. See ADR 0008.
 - Build and run the actual production server (do not conflate dev success with deployment).
-- Use one authenticated server function and one ordinary server route. Verify both independently enforce identity and scope.
-- Test direct RPC calls without route navigation, no-cookie request, wrong-company resource, CSRF from foreign origin, and unexpected Origin headers.
-- If using `src/start.ts`, verify custom middleware retains expected CSRF protections.
+- The existing Node HTTP API is the sole application-service adapter; validate authenticated calls through the production-built SPA and by direct HTTP requests.
+- Test direct HTTP calls without UI navigation, no-cookie request, wrong-company resource, CSRF from foreign origin, and unexpected Origin headers.
+- Verify the Vite development proxy does not weaken production CSRF or session protections.
 - Inject a harmless secret sentinel into server environment, scan client output/source maps/responses for it.
 - Verify no private response is marked public-cacheable; use private/no-store appropriately.
 

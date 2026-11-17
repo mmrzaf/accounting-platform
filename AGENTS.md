@@ -1,5 +1,7 @@
 # Contributor and coding-agent instructions
 
+**Mandatory first read:** [START-HERE.md](START-HERE.md). Run the dependency-free handoff diagnostic before any bootstrap: `node --experimental-strip-types scripts/handoff-check.ts`.
+
 This repository contains financial software. Do not treat a successful compilation as proof of accounting correctness.
 
 1. **Use TypeScript for source and tests.** Do not add JavaScript or `.mjs` source files. Generated build output belongs outside Git.

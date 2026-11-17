@@ -1,7 +1,7 @@
 # UX and localization foundation
 
-`src/ui/styles/tokens.css` defines neutral light/dark colors, spacing, focus and reduced-motion tokens. These are **design inputs only**, not evidence of a functioning application UI.
+The **actual browser client** lives in `web/`, with its styles in `web/src/styles.css`, screens in `web/src/pages/`, and locale strings in `web/src/lib/i18n.ts`. Do not create a second unused design-token stylesheet. Neutral surfaces, accessible focus outlines, reduced-motion preferences, small-screen tables and RTL direction are implemented in source; **they have not passed real browser testing**.
 
-`src/ui/i18n/locale.ts` handles Persian/English direction, formatting of exact BigInt monetary amounts, and Gregorian/Jalali date presentation using `Intl`. Canonical database dates and currency amounts are not stored in localized display form. Any Rial-to-Toman conversion must be explicit.
+`src/ui/i18n/locale.ts` provides independent Persian/English exact-integer formatting and Gregorian/Jalali presentation through `Intl`. Database dates and amounts are always canonical, never localized strings. Rial-to-Toman conversion must be explicit. The browser monetary input utilities are in `web/src/lib/api.ts`; do not let them replace server-side validation.
 
-**Unimplemented:** actual React screens, navigation, forms, accessible dialogs and tables, invoice and settlement workflows, responsive RTL/LTR testing, keyboard and screen-reader acceptance, and browser E2E. The final UI must be designed around real accounting workflows—not decorative dashboards.
+The client supports both Persian and English sign-in and shell layouts. Current browser date inputs are Gregorian-native, not a verified Jalali picker. Keyboard, screen-reader, mobile, and cross-browser acceptance remain mandatory. A correct-looking screen is not evidence of correct accounting workflows.

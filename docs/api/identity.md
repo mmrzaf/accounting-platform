@@ -1,6 +1,6 @@
 # Identity HTTP contract
 
-The framework-neutral handler is in `src/platform/http/identity-handler.ts`. It returns standard Web `Response` objects. **These routes are not yet mounted on TanStack Start or exposed by a live web server.** Mounting must use a trusted configured origin; do not turn user-provided `Host`/forwarding headers into the request URL. See [bootstrap and security](../operations/identity-bootstrap.md).
+The framework-neutral handler is in `src/platform/http/identity-handler.ts`. It returns standard Web `Response` objects. **These routes are mounted by the local Node HTTP server and used by the React client.** The browser build is still unverified. The HTTP listener uses a trusted configured origin; do not turn user-provided `Host`/forwarding headers into the request URL. See [bootstrap and security](../operations/identity-bootstrap.md).
 
 | Method | Path | Permission / behavior |
 |---|---|---|

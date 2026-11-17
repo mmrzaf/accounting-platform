@@ -2,7 +2,7 @@
 
 - `src/modules/`: accounting, identity, trading, AI, reports and bounded business-extension services. Modules enforce business invariants, not HTTP handlers.
 - `src/platform/`: SQLite access/migrations, HTTP and Node host, runtime configuration, structured logging, complete backups.
-- `src/ui/`: locale formatting and CSS design tokens only; no finished React UI yet.
+- `src/ui/`: framework-independent locale formatting only; the actual React client is in `web/`.
 - `scripts/`: operator CLI and source/documentation/boundary checks.
 - `migrations/`: immutable SQL history. Applied migration checksums must never change.
 - `tests/`: executable infrastructure, accounting, identity, trading, AI and HTTP regression tests.

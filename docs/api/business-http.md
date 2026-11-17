@@ -1,6 +1,6 @@
 # Business HTTP contract (initial)
 
-This API is mounted by the interim Node HTTP host at `/api/business/*` and can be remounted behind a future TanStack Start server route. Responses are JSON; sensitive responses use `Cache-Control: no-store`. Error envelopes contain `{error:{code,message},requestId}`. No user-supplied `sessionToken` is accepted; the cookie is authoritative.
+This API is mounted by the local Node HTTP host at `/api/business/*` and is consumed by the React SPA. Responses are JSON; sensitive responses use `Cache-Control: no-store`. Error envelopes contain `{error:{code,message},requestId}`. No user-supplied `sessionToken` is accepted; the cookie is authoritative.
 
 ## Authentication
 

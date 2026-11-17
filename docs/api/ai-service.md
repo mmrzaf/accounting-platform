@@ -1,6 +1,6 @@
 # AI application service and HTTP adapter (implemented backend)
 
-**Status:** This is a framework-independent, SQLite-backed AI operations service and an unmounted Web `Request`/`Response` HTTP adapter, not a finished TanStack Start/React chat application. `src/modules/ai/service.ts` owns orchestration and approval; `src/modules/ai/tools.ts` owns typed service calls. The AI model never receives database access, a session token, or the provider API key.
+**Status:** This is a framework-independent SQLite-backed AI operations service with an authenticated HTTP adapter **mounted when `APP_AI_MASTER_KEY_BASE64` is configured**. A React assistant screen exists in source but its production build and live-provider acceptance have not passed. `src/modules/ai/service.ts` owns orchestration and approval; `src/modules/ai/tools.ts` owns typed service calls. The AI model never receives database access, a session token, or the provider API key.
 
 ## Construction and secret ownership
 
@@ -41,7 +41,7 @@ The adapter uses OpenAI-compatible `POST {baseUrl}/chat/completions`, with optio
 
 Only mock providers were used in the tests. Specific hosted/local endpoint compatibility, rate limiting, billing/cost measurement, multi-model capability negotiation, TLS certificates, network timeouts and production deployment **remain unverified**.
 
-## HTTP adapter (unmounted)
+## HTTP adapter (conditionally mounted)
 
 `createAiHttpHandler(identity, ai)` handles:
 
@@ -51,4 +51,4 @@ Only mock providers were used in the tests. Specific hosted/local endpoint compa
 - `GET /api/ai/turns/<uuid>?companyId=<uuid>`
 - `POST /api/ai/actions/<uuid>/approve` / `reject`
 
-It uses the same cookie, CSRF token and same-origin policy as the existing identity handler. No bearer tokens in URL parameters, no public endpoint, no remote key disclosure. Mount it only behind a trusted-origin HTTPS configuration and add browser E2E tests when the TanStack Start app exists.
+It uses the same cookie, CSRF token and same-origin policy as the existing identity handler. No bearer tokens in URL parameters, no public endpoint, no remote key disclosure. The Node server mounts it only when the master key is configured. For LAN access use a trusted-origin HTTPS reverse proxy; browser E2E and live-provider testing remain mandatory.

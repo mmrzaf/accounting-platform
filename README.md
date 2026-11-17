@@ -1,5 +1,7 @@
 # Accounting Platform
 
+**New developer or coding agent? [START HERE](START-HERE.md) for an exact bootstrap, validation and handoff procedure.** Run `node --experimental-strip-types scripts/handoff-check.ts` before installing anything.
+
 A **TypeScript modular monolith** for company-scoped accounting and trading operations, with optional AI-assisted business commands. This repository contains a SQLite-backed service implementation, a local Node HTTP API, a CLI, migrations, and regression tests. **It is not yet production-ready:** a React/TanStack Router browser client now exists in source, but its dependencies and production build are unverified; Drizzle integration and several financial workflows are incomplete.
 
 ## Implemented components
@@ -27,6 +29,7 @@ Financial amounts are integer minor units, not JavaScript floating-point values.
 ## Development and operations
 
 ```sh
+# Node 26 only: npm install -g corepack@0.36.0 (not bundled)
 corepack enable
 corepack pnpm install --frozen-lockfile
 corepack pnpm verify

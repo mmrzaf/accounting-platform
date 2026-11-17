@@ -1,6 +1,6 @@
 # Trading document and settlement model
 
-**Status:** Executable framework-neutral application services implemented; no browser workflow, official fiscal invoice integration, bank transfer integration, or regulatory compliance claim.
+**Status:** Framework-independent services implemented with initial React screen sources for invoices, payments and allocations. The browser bundle and E2E are unverified; no official fiscal invoice or bank transfer integration, or regulatory compliance claim.
 
 ## Scope and ownership
 
@@ -34,4 +34,4 @@ Post/reverse/allocate operations are atomic and audited. Repeated posting is a s
 
 ## Deliberate limitations
 
-No tax calculation/invoicing, Iranian tax-authority integration, automatic account defaults, detailed product catalogue, valued inventory, stock movements, formal credit notes, refund workflow, automatic bank reconciliation, shipping, discount policy, advances netted against different control accounts, foreign-currency operational documents, or a React/Start interface. Multi-company consolidation is not provided. These features should not be inferred from the existing storage model.
+Tax-code calculation exists separately, but automatic invoice tax posting does not. Quantity-only stock and **partial credit notes on unpaid invoices** exist, but valued inventory/COGS, comprehensive refunds/returns, automatic bank reconciliation, shipping, discount policy, cross-control-account advances, FX operational documents and verified Iranian tax integration do not. React screen source exists but has not passed a build or browser E2E. Multi-company consolidation is not provided. These features should not be inferred from the existing storage model.

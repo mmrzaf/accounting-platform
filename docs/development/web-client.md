@@ -7,6 +7,7 @@ The browser application lives in `web/`. Organization administration includes co
 On a machine with working npm registry access and Node 24 (Node 22.16+ and 26 are compatibility targets):
 
 ```sh
+# Node 26 only: npm install -g corepack@0.36.0 (not bundled)
 corepack enable
 corepack pnpm install --frozen-lockfile
 corepack pnpm db:migrate

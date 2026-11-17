@@ -14,8 +14,8 @@ This is the source of truth for decision **status**. `CONFIRMED` means explicitl
 | D-08 | Audit | Posted journals immutable; use reversals/adjustments | CONFIRMED | Append-only financial history |
 | D-09 | AI | High autonomy; may perform validated routine operations with scoped permissions | CONFIRMED | Policy-based execution instead of chat-only previews |
 | D-10 | AI risk | Confirm destructive/high-impact actions; do not require confirmation for all routine postings | PROPOSED | Explicit risk policy and execution audit |
-| D-11 | Framework | TanStack Start, Node.js, React, Drizzle, SQLite, Tailwind, Zod | PROPOSED | Pending integration feasibility tests |
-| D-12 | Database driver | `better-sqlite3` first candidate | PROPOSED | Native package installation and platform matrix unverified |
+| D-11 | Framework | React/TanStack Router SPA + Vite with existing Node HTTP server; SQLite directly | IMPLEMENTED-PARTIAL | ADR-0008; real browser build/E2E pending; Drizzle not integrated |
+| D-12 | Database driver | `node:sqlite` in current production-path code | IMPLEMENTED-PARTIAL | Exact SQL aggregate and triggers tested on Node 22; Node 24/26 and Windows/macOS pending |
 | D-13 | Accounting books | One primary ledger per company, base currency and fiscal periods | IMPLEMENTED-PROVISIONAL | Accounting service built; user-facing multi-company semantics still require signoff |
 | D-14 | Currency model | Exact int64 minor units, rational FX snapshots, half-even conversion | IMPLEMENTED-PARTIAL | Realized differences, revaluation and source-document currency logic pending |
 | D-15 | Chart of accounts | Editable per-company hierarchy with starter template | PROPOSED | Must preserve historical references |
@@ -28,11 +28,11 @@ This is the source of truth for decision **status**. `CONFIRMED` means explicitl
 | D-22 | Integration | Iranian fiscal/tax integrations later and only with verified regulations | CONFIRMED | Stable extension points, no unsupported claims |
 | D-23 | Runtime | Node.js **24 primary**, support **22.16+ and 26** | CONFIRMED | Node 22.16 tested locally; Node 24/26 and OS matrix pending |
 | D-24 | Phase delivery contract | Clean Git commits and full repository archives after each authorized phase | CONFIRMED | Preserve full `.git` history and clean working tree |
-| D-25 | Recovery contract | One consistent database-and-attachments bundle; no public SQLite-only backup route | IMPLEMENTED-UNVERIFIED | Static cleanup consolidated the implementation; runtime verification still required |
-| D-26 | HTTP boundary | Loopback Node HTTP API with authenticated service composition; reverse-proxy HTTPS for LAN | IMPLEMENTED-PARTIAL | Browser UI, full extension routes and TLS acceptance still absent |
+| D-25 | Recovery contract | One consistent database-and-attachments bundle; no public SQLite-only backup route | IMPLEMENTED-UNVERIFIED | Complete bundle has automated backup and restore tests; real operational disaster recovery drill remains |
+| D-26 | HTTP boundary | Loopback Node HTTP API with authenticated service composition; reverse-proxy HTTPS for LAN | IMPLEMENTED-PARTIAL | Browser source and extension routes exist; browser build and TLS acceptance remain open |
 | D-27 | Persistence boundary | Current Node SQLite service queries with unchecked row assertions | KNOWN-DEBT | Replace with schema-validated/Drizzle projections before production release |
-| D-28 | Trading workflow | Base-currency non-stock invoices, payments/receipts, append-only allocations, controlled reversals | IMPLEMENTED-PARTIAL | Backend service tested; UI, source-document FX, returns and tax work remain |
-| D-29 | AI operations (initial subset) | Permission-filtered tools, per-company autonomy policy, durable approval, encrypted org provider config | IMPLEMENTED-PARTIAL | Single-turn, one mutation max; mock-tested backend+HTTP adapter only; no UI/live provider/compound workflows |
+| D-28 | Trading workflow | Base-currency non-stock invoices, payments/receipts, append-only allocations, controlled reversals | IMPLEMENTED-PARTIAL | Core backend tested; browser E2E, FX, comprehensive returns and automatic tax posting remain |
+| D-29 | AI operations (initial subset) | Permission-filtered tools, per-company autonomy policy, durable approval, encrypted org provider config | IMPLEMENTED-PARTIAL | Single-turn, one mutation max; Mock-tested backend and HTTP; React assistant source exists but no browser build/live provider/compound workflows |
 
 ## Approval required before irreversible domain schema and financial features
 
@@ -41,6 +41,6 @@ This is the source of truth for decision **status**. `CONFIRMED` means explicitl
 - D-14: core money storage/rounding implemented; rate date selection for documents, invoice/payout currency policy, realized differences and revaluation remain to settle.
 - D-17: whether financially valued inventory is necessary in first release.
 - D-10: risk thresholds and approved autonomous financial commands.
-- D-11/D-12: verify actual release compatibility with installed packages and production builds. D-23 runtime policy is confirmed but the full compatibility matrix has not run.
+- D-11/D-12: current source stack is documented in ADR-0008. Validate actual locked dependencies, production browser build, `node:sqlite` support and Node/OS matrix before release.
 
 Record each resolution in this table and an ADR when it changes a foundational invariant.

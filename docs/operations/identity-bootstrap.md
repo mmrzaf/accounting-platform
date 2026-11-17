@@ -22,7 +22,7 @@ Bootstrap does not have a hard coded maximum number of organizations, companies 
 With **trusted local filesystem/installation operator access**, use:
 
 ```text
-node scripts/app.ts admin:recover --slug exampleco --admin-username owner
+corepack pnpm app:recover-admin -- --slug exampleco --admin-username owner
 ```
 
 Password input is hidden on an interactive terminal, or accepted via `--password-stdin` in noninteractive mode. Only an existing organization administrator may be recovered through this command. It activates that user if disabled, increments credential version, revokes all their sessions, clears their login lockout and emits a `operator.admin_recovery` security audit event. This command is deliberately not exposed to HTTP or an AI tool.
@@ -37,11 +37,11 @@ Password input is hidden on an interactive terminal, or accepted via `--password
 - Disabling an account or changing/resetting its password revokes existing sessions.
 - Role changes take effect on the next request because permissions are always read from the database.
 
-System role templates: `organization-admin`, `company-admin`, `company-accountant`, `company-reader`, `company-operator`. The latter contain a future-facing permission vocabulary; no accounting API is implemented yet. Custom roles are supported by the service without direct per-user permissions.
+System role templates: `organization-admin`, `company-admin`, `company-accountant`, `company-reader`, `company-operator`. Permissions are checked by the actual accounting and trading services; being an organization admin does not itself grant access to every company. Custom roles are supported by the service without direct per-user permissions.
 
 ## HTTP adapter integration
 
-`src/platform/http/identity-handler.ts` exports a `createIdentityHttpHandler(service)` function consuming a Web `Request` and producing a Web `Response`. This is a **tested adapter**, not an independently running application. A trusted TanStack Start server route must construct the request URL from a configured public origin and use authenticated HTTPS for LAN access. The adapter does not honor arbitrary incoming `Host` or forwarded scheme headers.
+`src/platform/http/identity-handler.ts` exports a `createIdentityHttpHandler(service)` function consuming a Web `Request` and producing a Web `Response`. The adapter is **mounted on the running Node HTTP server**. The server constructs request URLs from a configured trusted public origin; HTTPS reverse proxy configuration is required for LAN access. The adapter does not honor arbitrary incoming `Host` or forwarded scheme headers.
 
 - Session cookie is `__Host-accounting_session` for HTTPS (Secure, HttpOnly, SameSite=Strict), or `accounting_session` for local loopback HTTP development only.
 - `POST /api/auth/login`: organization slug, username and password JSON; the response sets the cookie and returns CSRF token, current user and expiry. The opaque bearer token is never returned as JSON.
@@ -55,4 +55,4 @@ System role templates: `organization-admin`, `company-admin`, `company-accountan
 
 ## Caution
 
-The permissions layer protects only features that actually route through its application service and HTTP adapter. Future accounting, attachment downloads, imports, AI tool calls and file storage **must not** bypass authorization. A real secure deployment, UI and browser E2E verification remain outstanding.
+The permissions layer protects only features that actually route through its application service and HTTP adapter. Accounting, attachment downloads, imports and AI tool calls are now routed through authorized services. Future endpoints must keep that property. Secure deployment and browser E2E verification remain outstanding.

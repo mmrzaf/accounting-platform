@@ -25,8 +25,8 @@ function assignInput(body: Record<string, unknown>) {
   return { userId: identifier(body['userId']), roleId: identifier(body['roleId']), companyId: body['companyId'] == null ? null : identifier(body['companyId']) }
 }
 
-/** Web Request/Response adapter: safe to mount behind a future TanStack Start server route.
- * Adapter must construct request.url from its configured, trusted public origin, not an unchecked Host/X-Forwarded header.
+/** Authenticated identity transport adapter for the local Node server.
+ * The server constructs request.url from the trusted configured origin, never an unchecked Host/Forwarded header.
  */
 export function createIdentityHttpHandler(identity: ReturnType<typeof createIdentityService>) {
   return async (request: Request): Promise<Response> => {

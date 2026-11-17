@@ -1,21 +1,19 @@
-# Release-readiness review — 2026-11-17
+# Release-readiness checkpoint — 2026-11-17
 
-## Verified in this revision
+## Verified in this handoff pass
 
-- Expanded HTTP routes delegate to already existing accounting, tax, inventory, credit-note, import and document services.
-- Backend source passes strict repository TypeScript checks, module-boundary checks, documentation checks, compilation, and regression tests on **Linux Node 22.16**.
-- HTTP integration tests cover accounting book setup, period/chart creation, invoice posting, trial balance, historical financial summary, tax quote, inventory moves, contact CSV preview/commit, credit notes, attachment upload/download, CSRF and foreign-company denial.
-- Static web handler has tests for SPA entry, content types, Content Security Policy, symlink escape refusal, and controlled caching.
-- Browser monetary conversion has dependency-free tests for Persian digits, exact values, and precision validation.
-- React/TSX source files, including organization/user administration, were syntax parsed but **could not be typechecked or bundled without npm dependencies**.
+- The full Linux/Node 22.16 **backend suite passed 97/97 tests**, including two new handoff tests and an HTTP regression that ensures unknown `/api` routes return JSON 404 even when a built SPA exists.
+- Strict TypeScript checking of backend, CLI and tests, source-extension policy, import boundaries, documentation links and backend compilation passed.
+- `app:doctor` now inspects database integrity, pending migrations and browser bundle availability; `scripts/handoff-check.ts` reports actionable prerequisite gaps without requiring installed dependencies.
+- The server now accounts for base64 overhead in the upload wire-body bound, while the decoded attachment limit remains enforced by the document service.
+- Frontend sign-out no longer hides a server-side logout failure; English/Persian login source and current server/agent documents were improved.
+- GitHub Actions now has a browser job that refuses to pass without a committed `web/pnpm-lock.yaml` and an actual Vite production build. Node 26 also provisions Corepack explicitly.
 
-## Unverified / not delivered
+## Not verified or not implemented
 
-- Real React/Vite build, generated frontend dependency lockfile, browser session/UI journey, accessible keyboard testing, Jalali date picker, visual regressions, cross-platform browser behavior.
-- Node 24/26 and Windows/macOS actual execution.
-- Full automatic tax posting, valued inventory/COGS, returns/refunds and bank reconciliation, full FX settlement/revaluation, accountant closing and statutory compliance.
-- Safe production operation at customer sites, reverse-proxy configuration, scheduled/off-host backups and restore drill, security acceptance.
+- Browser pnpm lockfile, React types, real Vite build, browser E2E, keyboard/screen-reader tests and RTL/Jalali acceptance.
+- Node 24/26, Windows or macOS execution and native release packaging.
+- Live AI provider operation, verified TLS reverse-proxy deployment, off-host scheduled backups and disaster recovery drill.
+- All complex financial workflows listed in [current implementation status](implementation-status.md), plus compliance review.
 
-## Risk classification
-
-**Not approved for real financial production use.** Suitable for further development and a controlled test-data pilot *after* the real web build and E2E suite pass. Do not infer production acceptance from backend-only test counts or React syntax parsing.
+**Release decision: BLOCKED for real financial data.** This handoff is suitable for a competent developer/agent to continue on a connected machine, beginning with [START-HERE](../../START-HERE.md). A green backend suite cannot substitute for the browser, financial and operational release gates.

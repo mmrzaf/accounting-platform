@@ -44,9 +44,9 @@ The public interface uses TypeScript definitions in `types.ts`. Amounts are **ca
 
 ## Explicit limitations / future work
 
-The trading module provides invoice-to-ledger mapping and payment allocations. The current version does **not** provide realized FX settlement differences, period-end FX revaluation, fiscal-year close/retained-earnings carry forward, tax policy, automated account templates, account reconciliations, attached documents, UI or AI tools. `financialSummary` is a **cumulative category reconciliation**, not a full formal balance sheet/P&L by fiscal year. The source document reference is an idempotent *opaque provenance key* until source services are implemented.
+The trading module provides invoice-to-ledger mapping and payment allocations. The current version does **not** provide realized FX settlement differences, period-end FX revaluation, fiscal-year close/retained-earnings carry forward, tax policy, automated account templates, account reconciliations, automatic attachment-to-ledger linkage or a verified browser build. `financialSummary` is a **cumulative category reconciliation**, not a full formal balance sheet/P&L by fiscal year. The source document reference is an idempotent *opaque provenance key* until source services are implemented.
 
-The `node:sqlite` adapter is used to run end-to-end offline tests. Its custom aggregate is installed by `openDatabase` on **every** connection. A future production database-driver replacement must preserve the posting-trigger contract or replace it with an equally strong exact DB-side mechanism, with tests. Drizzle and TanStack Start remain unintegrated, and Windows/macOS/Node 24/26 validation is still pending.
+The `node:sqlite` adapter is used to run end-to-end offline tests. Its custom aggregate is installed by `openDatabase` on **every** connection. A future production database-driver replacement must preserve the posting-trigger contract or replace it with an equally strong exact DB-side mechanism, with tests. Drizzle remains unintegrated; React/TanStack Router is used as a separate SPA, not TanStack Start, and Windows/macOS/Node 24/26 validation is still pending.
 
 ## Verification
 

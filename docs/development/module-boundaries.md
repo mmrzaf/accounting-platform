@@ -11,7 +11,7 @@ The current project is one TypeScript modular monolith. Application modules have
 | `src/platform/database` | SQLite connections, migrations and the current SQL row-mapping boundary |
 | `src/platform/http`, `src/platform/server` | Input/output transport adapters and service composition |
 | `src/platform/backup`, `src/platform/config` | Consistent recovery and runtime configuration |
-| `src/ui` | Locale formatting and design tokens; no DB or domain imports |
+| `src/ui` | Independent locale formatting; no DB or domain imports |
 
 **Actual dependency hierarchy:** identity -> accounting -> trading -> extensions/AI; platform HTTP and server may depend on application services. Neither identity nor accounting may depend on trading or AI. The boundary checker enforces these explicit dependencies at the source level.
 

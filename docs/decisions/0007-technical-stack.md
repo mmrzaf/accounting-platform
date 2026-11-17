@@ -1,6 +1,6 @@
 # ADR-0007: Provisional TypeScript full-stack tooling
 
-- **Status:** Proposed, pending Phase 1 platform proof
+- **Status:** Superseded for browser architecture by [ADR-0008](0008-browser-client.md); retained as historical design proposal
 - **Date:** 2026-11-17
 
 ## Proposal
@@ -18,3 +18,7 @@ Server functions are independently callable endpoints; enforce auth/permissions/
 ## Runtime amendment (2026-11-17)
 
 User explicitly selected Node 24 as primary with 22 and 26 compatibility. This runtime target is **CONFIRMED**. External TanStack/Drizzle driver validation remains pending. The current backend uses `node:sqlite` in identity, accounting, business services and infrastructure. This is a real current implementation choice, not Drizzle integration or a verified long-term driver decision. Vite 8 supports the Node 22.16 minimum per its official requirements.
+
+## Current disposition
+
+The released source uses a local Node HTTP server, React/TanStack Router SPA and `node:sqlite` rather than TanStack Start, Drizzle or `better-sqlite3`. Do not treat the initial proposal as the implemented stack. Node 24 remains primary; 22.16+/26 are compatibility targets. Frontend dependency locking and build, persistence review and cross-platform testing remain open gates.

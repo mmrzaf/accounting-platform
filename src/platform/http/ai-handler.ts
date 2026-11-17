@@ -9,7 +9,7 @@ const text = (value: unknown, label: string): string => {
   if (typeof value !== 'string' || !value.trim()) throw new AiError('INVALID_INPUT', `Invalid ${label}`)
   return value
 }
-/** An adapter ready for future TanStack Start server routes; no model or database access lives here. */
+/** Authenticated AI transport adapter mounted by the local Node server when configured. */
 export function createAiHttpHandler(identity: ReturnType<typeof createIdentityService>, ai: ReturnType<typeof createAiService>) {
   return async (request: Request): Promise<Response> => {
     const requestId = randomUUID()

@@ -1,43 +1,43 @@
-# Implementation status and static-review record
+# Implementation status — current handoff baseline (2026-11-17)
 
-Updated 2026-11-17. This is the **current** status document; milestone-by-milestone validation snapshots remain available in Git history, not as competing specifications.
+**Classification: development candidate; NOT approved for real business accounting.** The source contains a functioning and tested Node/SQLite backend plus an unverified React browser client. Do not interpret API tests as browser validation or financial/regulatory certification.
 
-## Delivered in source
+## Implemented and tested locally
 
-- Strict TypeScript modules for local identity/RBAC and company accounting scopes.
-- SQLite migrations for journals, source documents, AI configuration, quantity stock, tax schedules, attachments, credit notes and contact imports.
-- Exact integer-based monetary accounting, balanced posting, reversals, trial balance and limited financial reporting.
-- Purchase/sale invoices, receipts/payments, partial allocations, and restricted credit notes.
-- Bounded AI tools with company-scoped permissions and audited authorization/approval decisions.
-- Loopback Node HTTP API for identity, core trading, reports and optional AI.
-- Complete database-and-attachments backup, verification, and safe restore into new paths.
-- Unit and integration test sources covering many of the above behaviors.
-
-## Missing or only partially delivered
-
-| Area | Gap and consequence |
+| Capability | Evidence / boundary |
 |---|---|
-| Browser UX | React/TanStack Router source now includes core Persian/English screens, but **dependencies, typecheck, production build, E2E, Jalali picker and accessibility verification remain unfinished** |
-| Persistence integration | Drizzle is not integrated; SQL query results rely on a documented unchecked cast helper. Runtime schemas and typed projections are not complete |
-| HTTP surface | Core accounting setup, ledger, inventory, tax, CSV imports, credit notes and attachments now have authenticated HTTP endpoints; remaining editing/refund/reporting endpoints require product design |
-| Financial depth | No valued stock or COGS posting, full returns/refunds, bank reconciliation, automatic tax posting, full FX settlements and period-end revaluation, or audited year-close workflow |
-| AI product | Initial AI request and approval UI exists in source but its browser build and workflow remain unverified; live-provider acceptance and atomic compound transaction commands are missing; provider calls need operational security review |
-| Operational readiness | No production installer, automated backup scheduling/retention, production reverse-proxy verification, disaster-recovery drill, or measured RPO/RTO |
-| Cross-platform | Node 24 primary and Node 22/26 compatibility policy are configured but not certified by execution on all target OS/runtime combinations |
-| Regulatory compliance | Iranian financial and tax integrations are not established or verified; do not present the product as legally compliant |
+| Identity and access | Organizations, companies, RBAC, passwords, sessions, operator bootstrap/recovery; real SQLite and HTTP tests |
+| Accounting core | Exact integer minor units, company books, periods, accounts, double-entry posting, immutability, reversals, trial balance and ledger tests |
+| Trading | Contacts, non-stock purchase/sale invoices, receipts/payments, partial allocations, restricted credit notes; accounting integration tests |
+| Extensions | Quantity-only inventory, dated tax codes, CSV contact imports, attachments with checksums; HTTP/API tests |
+| AI backend | Encrypted provider configuration, one mutating tool per turn, per-company policy, permission filtering, auditable approvals, mock-provider tests |
+| Operations | Loopback Node HTTP server, consistent SQLite+attachment backup/verify/restore, CLI, checksummed migrations, hardened request sizes and unknown-API 404 |
+| Handoff | `START-HERE.md`, dependency-free `scripts/handoff-check.ts`, improved `app:doctor`, agent conventions and CI browser-build gate |
 
-## Static cleanup findings and decisions
+**Observed verification:** 97/97 backend tests on Linux/Node 22.16, strict TypeScript for backend/CLI/tests, source extension, dependency-boundary and docs checks. Node 24/26 and other OS results have not been observed. These tests do **not** exercise a real React bundle.
 
-- Removed the public **SQLite-only** backup route so that backups cannot silently omit attachment files. There is one complete backup format and one CLI command family.
-- Consolidated backup implementation into `src/platform/backup/backups.ts`, with platform-native path-overlap checks and post-copy hash verification added during the review.
-- Removed isolated feasibility prototypes, static UX mockup, and unused shared type examples from the working tree. Historical rationale remains in Git history; the retained tests exercise actual application modules.
-- Configuration and listener now agree on loopback-only addresses; startup failure explicitly releases database resources.
-- Replaced outdated milestone documentation with this status and the release-gate checklist, with no claim that the requested application is already complete.
+## Browser source exists, acceptance remains open
 
-- The pinned `@types/node@25.1.0` remains out of alignment with the Node 24 primary target; dependency/lockfile alignment is a release validation task and was not guessed at offline.
+The `web/` project contains React/TanStack Router pages for sign-in (Persian and English), company selection, overview, accounts/period setup, contacts, invoices, payments/allocations, ledger, quantity stock, AI requests/approvals, and organization administration. The backend serves a `web/dist` build when one exists; no such validated build is included in Git.
 
-## Verification evidence and limits
+- `web/pnpm-lock.yaml` is **missing** because the package registry was unreachable; generate/review/commit it on a connected machine. Do not fabricate package integrity values.
+- Root `@types/node` is pinned to 25 while Node 24 is the primary target; align package and root lockfile together.
+- The actual React typecheck, Vite production build, browser E2E, accessibility, RTL/LTR visual testing, date input/Jalali behavior and deployment are **not verified**.
+- The browser uses the backend HTTP services; it is not TanStack Start. See [ADR-0008](../decisions/0008-browser-client.md).
 
-The previous static cleanup did not execute its modified suite. This revision re-ran the repository verification on Linux/Node 22.16 and recorded the results in the latest readiness review. The previous cleanup was static-only; this revision includes executable backend checks. The React client was only syntax-parsed because dependency installation was unavailable. Backend verification ran on Linux Node 22.16, but the React build and complete runtime matrix have not run. Do not treat the UI or this release as certified. Do not interpret deletion of obsolete feasibility tests as an increase in test coverage.
+## Major functional gaps for full accounting use
 
-The history contains earlier delivery commits and later focused cleanup commits under the requested Git author. The repository working tree should be clean in the delivered ZIP.
+- Financially valued stock, inventory COGS, automatic invoice tax posting, full credit/refund flows.
+- Realized FX differences, period-end currency revaluation, formal fiscal-year close, bank reconciliation.
+- Validated Iranian regulatory/tax integrations and legally compliant invoice output.
+- Comprehensive report/form UX and optional safe bulk imports/exports, attachment navigation, advanced AI compound workflows.
+- Drizzle is not integrated; direct SQLite row projections include unchecked assertions. Migration to a different driver requires preserving custom exact `bigint_total`, triggers and cross-company FKs.
+
+## Production and operator gates
+
+- Use Node 24 and connected pnpm for the **actual** locked install and browser build, then CI on Node 22/24/26 and Windows/macOS.
+- Run full browser E2E and security review for cookie/CSRF, HTTPS reverse proxy, company boundaries and AI provider handling.
+- Drill backup and restore on a fresh machine, including attachment integrity and post-restore ledger reconciliation; establish scheduled off-host backups and an owner for failures.
+- Conduct accountant review on multi-currency, corrections, financial reports, taxes, inventory and fiscal periods. Do not enter critical data before explicit sign-off.
+
+For the precise first-run sequence, follow [START-HERE](../../START-HERE.md). For ordered follow-up work, use [open-work](../roadmap/open-work.md).

@@ -3,6 +3,7 @@
 Use Node.js **24** as the primary runtime. Node.js **22.16+** and **26** are intended compatibility targets. `pnpm` is pinned by `packageManager`; enable Corepack and install with a frozen lockfile on a connected machine.
 
 ```sh
+# Node 26 only: npm install -g corepack@0.36.0 (not bundled)
 corepack enable
 corepack pnpm install --frozen-lockfile
 corepack pnpm verify
@@ -11,9 +12,11 @@ corepack pnpm db:migrate
 corepack pnpm app:doctor -- --json
 ```
 
-The project has no framework UI dependency yet. Do not mistake the Node API for TanStack Start or the CSS tokens for a finished interface. Follow [bootstrap](../operations/identity-bootstrap.md) to create an administrator and [server operations](../operations/local-server.md) for the local API.
+The React/TanStack Router client lives in `web/`. First read [the agent handoff](../../START-HERE.md). The browser lockfile, typecheck and production build remain unverified; do not mistake the Node API for a finished browser application. Follow [bootstrap](../operations/identity-bootstrap.md) to create an administrator and [server operations](../operations/local-server.md) for the local API.
 
 ## Repository checks
+
+`node --experimental-strip-types scripts/handoff-check.ts --json` runs **before dependency installation** and lists exact next actions. Its `--release --strict` mode fails on incomplete release prerequisites (including the missing browser lockfile and outdated Node typings).
 
 - `check:types`: strict TypeScript across source, scripts and tests.
 - `check:sources`: reject JS/MJS/CJS/JSX source files.

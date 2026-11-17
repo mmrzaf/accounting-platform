@@ -18,7 +18,7 @@ CLI / Node HTTP request / AI operator
 
 Organizations isolate users and business data. Each company holds separate ledger, fiscal periods, currency and accounting source records. User sessions belong to one organization; company access follows assigned roles. HTTP handlers decode requests and invoke the same application services used by the AI tools.
 
-The current Node HTTP API is a real implemented boundary, not the intended browser UI. No React/TanStack screens, Drizzle-backed persistence, or automatic bank integrations are present. Source/UI plans live separately in [implementation status](../validation/implementation-status.md).
+The React/TanStack Router SPA source now lives under `web/`, and the Node server serves its production bundle from `web/dist` when available. The SPA build and browser E2E have **not** been certified. Drizzle-backed persistence and automatic bank integrations are not present. See [implementation status](../validation/implementation-status.md).
 
 ## Invariants and operational assumptions
 
