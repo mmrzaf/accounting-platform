@@ -1,7 +1,7 @@
 export const languages = {
   en: {
     app: 'Accounting', home: 'Overview', contacts: 'Contacts', invoices: 'Invoices', payments: 'Payments',
-    ledger: 'Ledger', inventory: 'Inventory', settings: 'Settings', assistant: 'Assistant', administration: 'Administration',
+    ledger: 'Ledger', inventory: 'Inventory', settings: 'Settings', assistant: 'Assistant', administration: 'People & access',
     company: 'Company', signOut: 'Sign out', language: 'Language', loading: 'Loading…',
     save: 'Save', cancel: 'Cancel', create: 'Create', post: 'Post', refresh: 'Refresh', search: 'Search',
     empty: 'No records found.', errors: 'Something went wrong', status: 'Status', date: 'Date',
@@ -10,7 +10,7 @@ export const languages = {
   },
   fa: {
     app: 'حسابداری', home: 'نمای کلی', contacts: 'اشخاص', invoices: 'فاکتورها', payments: 'دریافت و پرداخت',
-    ledger: 'دفتر کل', inventory: 'موجودی کالا', settings: 'تنظیمات', assistant: 'دستیار هوشمند', administration: 'مدیریت سازمان',
+    ledger: 'دفتر کل', inventory: 'موجودی کالا', settings: 'تنظیمات', assistant: 'دستیار هوشمند', administration: 'کاربران و دسترسی‌ها',
     company: 'شرکت', signOut: 'خروج', language: 'زبان', loading: 'در حال بارگذاری…',
     save: 'ذخیره', cancel: 'انصراف', create: 'ایجاد', post: 'ثبت قطعی', refresh: 'بازخوانی', search: 'جست‌وجو',
     empty: 'موردی یافت نشد.', errors: 'خطایی رخ داده است', status: 'وضعیت', date: 'تاریخ',

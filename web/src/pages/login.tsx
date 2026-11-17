@@ -7,14 +7,13 @@ import { languages } from '../lib/i18n'
 export function Login() {
   const { refresh, locale, setLocale } = useApplication()
   const persian = locale === 'fa'
-  const [organizationSlug, setOrganizationSlug] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string|null>(null)
   const [busy, setBusy] = useState(false)
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setBusy(true); setError(null)
-    try { await request('/api/auth/login', undefined, { organizationSlug, username, password }); setPassword(''); await refresh() }
+    try { await request('/api/auth/login', undefined, { username, password }); setPassword(''); await refresh() }
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Sign in failed') }
     finally { setBusy(false) }
   }
@@ -23,7 +22,6 @@ export function Login() {
     <div className="brand"><div className="brand-mark">A</div><span>{languages[locale].app}</span></div>
     <h1>{persian ? 'ورود به سامانه' : 'Sign in'}</h1><p className="muted">{persian ? 'به محیط مالی شرکت خود وارد شوید.' : 'Access your company accounting workspace.'}</p>
     <Alert text={error}/>
-    <Field label={persian ? "شناسه سازمان" : "Organization slug"}>{id => <input id={id} dir="ltr" autoComplete="organization" value={organizationSlug} onChange={e => setOrganizationSlug(e.target.value)} required/>}</Field>
     <Field label={persian ? "نام کاربری" : "Username"}>{id => <input id={id} dir="ltr" autoComplete="username" value={username} onChange={e => setUsername(e.target.value)} required/>}</Field>
     <Field label={persian ? "گذرواژه" : "Password"}>{id => <input id={id} type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} required/>}</Field>
     <Submit busy={busy}>{persian ? 'ورود' : 'Sign in'}</Submit>

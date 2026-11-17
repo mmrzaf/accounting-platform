@@ -4,7 +4,7 @@ import { Alert, Empty, Field, Page, Panel, Spinner, Submit } from '../components
 import { newRequestKey, today, type List, type StockItem } from '../lib/api'
 import { languages } from '../lib/i18n'
 export function Inventory(){
-  const {call,companyId,locale}=useApplication()
+  const {call,locale}=useApplication()
   const [items,setItems]=useState<StockItem[]>([])
   const [sku,setSku]=useState(''),[name,setName]=useState(''),[unit,setUnit]=useState('pcs')
   const [itemId,setItemId]=useState(''),[direction,setDirection]=useState<'in'|'out'>('in')
@@ -16,7 +16,7 @@ export function Inventory(){
     void call<List<StockItem>>('/api/inventory/items').then(v=>{if(active)setItems(v.items)})
       .catch(e=>{if(active)setError(e instanceof Error?e.message:String(e))}).finally(()=>{if(active)setLoading(false)})
     return()=>{active=false}
-  },[companyId,call])
+  },[call])
   async function create(e:FormEvent<HTMLFormElement>){e.preventDefault();setBusy(true);setError(null)
     try{await call('/api/inventory/items',{sku,name,unit});setSku('');setName('');await reload();setNotice(languages[locale].success)}
     catch(cause){setError(cause instanceof Error?cause.message:String(cause))}finally{setBusy(false)} }

@@ -5,22 +5,22 @@ import { newRequestKey, request } from '../lib/api'
 import { languages } from '../lib/i18n'
 interface Turn { id?: string; reply?: string; status?: string; action?: { id: string; tool: string; input: unknown; fingerprint: string; state: string; result: unknown } | null; [key: string]: unknown }
 export function Assistant(){
-  const {companyId,session,locale}=useApplication()
+  const {session,locale}=useApplication()
   const [message,setMessage]=useState('')
   const [result,setResult]=useState<Turn|null>(null)
   const [error,setError]=useState<string|null>(null)
   const [busy,setBusy]=useState(false)
   const [mode,setMode]=useState<'review'|'auto'>('review')
   async function send(e:FormEvent<HTMLFormElement>){e.preventDefault();setBusy(true);setError(null)
-    try{const turn=await request<Turn>('/api/ai/turns',session?.csrfToken,{companyId,message,clientRequestId:newRequestKey(),executionMode:mode});setResult(turn);setMessage('')}
+    try{const turn=await request<Turn>('/api/ai/turns',session?.csrfToken,{message,clientRequestId:newRequestKey(),executionMode:mode});setResult(turn);setMessage('')}
     catch(cause){setError(cause instanceof Error?cause.message:String(cause))}finally{setBusy(false)} }
   async function decide(decision: 'approve' | 'reject') {
     if (!result?.action || result.action.state !== 'awaiting_approval') return
     setBusy(true); setError(null)
     try {
       await request(`/api/ai/actions/${result.action.id}/${decision}`, session?.csrfToken,
-        { companyId, expectedFingerprint: result.action.fingerprint })
-      const updated = await request<Turn>(`/api/ai/turns/${result.id}?companyId=${encodeURIComponent(companyId)}`)
+        { expectedFingerprint: result.action.fingerprint })
+      const updated = await request<Turn>(`/api/ai/turns/${result.id}`)
       setResult(updated)
     } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)) }
     finally { setBusy(false) }

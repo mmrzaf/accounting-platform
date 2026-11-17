@@ -1,53 +1,112 @@
-import { useState } from 'react'
-import { Link, Outlet } from '@tanstack/react-router'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link, Outlet, useLocation } from '@tanstack/react-router'
 import { useApplication } from './context'
 import { languages } from '../lib/i18n'
 import { Login } from '../pages/login'
 import { Spinner } from '../components/ui'
+import { Icon, type IconName } from '../components/icons'
 
-const links = [
-  { path: '/' as const, key: 'home' as const },
-  { path: '/contacts' as const, key: 'contacts' as const },
-  { path: '/invoices' as const, key: 'invoices' as const },
-  { path: '/payments' as const, key: 'payments' as const },
-  { path: '/ledger' as const, key: 'ledger' as const },
-  { path: '/inventory' as const, key: 'inventory' as const },
-  { path: '/assistant' as const, key: 'assistant' as const },
-  { path: '/settings' as const, key: 'settings' as const },
-  { path: '/administration' as const, key: 'administration' as const },
+type NavItem = { path: '/' | '/contacts' | '/invoices' | '/payments' | '/ledger' | '/inventory' | '/assistant' | '/settings' | '/administration'; key: keyof typeof languages.en; icon: IconName }
+const primary: NavItem[] = [
+  {path:'/',key:'home',icon:'home'},
+  {path:'/contacts',key:'contacts',icon:'contacts'},
+  {path:'/invoices',key:'invoices',icon:'invoice'},
+  {path:'/payments',key:'payments',icon:'payment'},
 ]
-export function Shell() {
-  const { session, loading, loadError, companies, companyId, setCompanyId, locale, setLocale, logout } = useApplication()
-  const [logoutError, setLogoutError] = useState<string | null>(null)
+const finance: NavItem[] = [
+  {path:'/ledger',key:'ledger',icon:'ledger'},
+  {path:'/inventory',key:'inventory',icon:'inventory'},
+]
+const administration: NavItem[] = [
+  {path:'/administration',key:'administration',icon:'users'},
+  {path:'/settings',key:'settings',icon:'settings'},
+]
+const allItems = [...primary, ...finance, ...administration, {path:'/assistant',key:'assistant',icon:'assistant'}] satisfies NavItem[]
+
+function Navigation({close}:{close:()=>void}) {
+  const {locale} = useApplication()
   const t = languages[locale]
-  if (loading) return <main className="center"><Spinner /></main>
-  if (loadError) return <main className="center"><div className="panel" role="alert"><p>{loadError}</p><button onClick={()=>window.location.reload()}>Retry connection</button></div></main>
-  if (!session) return <Login />
-  return <div className="layout" dir={locale === 'fa' ? 'rtl' : 'ltr'} lang={locale}>
-    <a href="#main-content" className="skip-link">{locale === 'fa' ? 'رفتن به محتوا' : 'Skip to content'}</a>
-    <aside className="sidebar">
-      <div className="brand"><div className="brand-mark">A</div><span>{t.app}</span></div>
-      <nav aria-label="Main navigation">
-        {links.map(link => <Link key={link.path} to={link.path} activeProps={{ className: 'active' }} activeOptions={{ exact: link.path === '/' }}>
-          {t[link.key]}
-        </Link>)}
-      </nav>
-      <div className="sidebar-footer"><div>{session.user.displayName}</div><button type="button" className="text-button" onClick={() => { setLogoutError(null); void logout().catch(error => setLogoutError(error instanceof Error ? error.message : String(error))) }}>{t.signOut}</button>{logoutError && <p role="alert">{logoutError}</p>}</div>
-    </aside>
-    <div className="workspace">
-      <header className="topbar">
-        <div className="top-company"><label htmlFor="current-company">{t.company}</label>
-          <select id="current-company" value={companyId} onChange={event => setCompanyId(event.target.value)}>
-            {companies.map(company => <option key={company.id} value={company.id}>{company.name}</option>)}
-          </select></div>
-        <div className="top-locale"><label htmlFor="language">{t.language}</label>
-          <select id="language" value={locale} onChange={event => setLocale(event.target.value === 'fa' ? 'fa' : 'en')}>
-            <option value="fa">فارسی</option><option value="en">English</option>
-          </select></div>
-      </header>
-      <main id="main-content" tabIndex={-1}>
-        {companyId ? <Outlet /> : <div className="panel"><p>{locale === 'fa' ? 'هنوز شرکتی برای این کاربر در دسترس نیست.' : 'No companies are available to this user.'}</p></div>}
-      </main>
+  const groups = [
+    {label:locale==='fa'?'کارهای روزانه':'WORKSPACE',items:primary},
+    {label:locale==='fa'?'مالی و حسابداری':'FINANCE',items:finance},
+    {label:locale==='fa'?'مدیریت':'ADMINISTRATION',items:administration},
+  ]
+  return <nav className="primary-navigation" aria-label={locale==='fa'?'ناوبری اصلی':'Main navigation'}>
+    {groups.map(group => <div key={group.label} className="nav-group">
+      <p className="nav-group-title">{group.label}</p>
+      {group.items.map(item=><Link key={item.path} to={item.path} onClick={close} className="nav-link" activeProps={{className:'nav-link active'}} activeOptions={{exact:item.path==='/'}}>
+        <Icon name={item.icon}/><span>{t[item.key]}</span>
+      </Link>)}
+    </div>)}
+  </nav>
+}
+
+function QuickNavigate({close}:{close:()=>void}) {
+  const {locale} = useApplication()
+  const t = languages[locale]
+  const [query,setQuery] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
+  const matches = useMemo(()=>allItems.filter(item=>t[item.key].toLowerCase().includes(query.toLowerCase())),[query,t])
+  useEffect(()=>{inputRef.current?.focus()},[])
+  return <div className="dialog-backdrop" onClick={close}>
+    <div role="dialog" aria-modal="true" aria-label={locale==='fa'?'رفتن به بخش':'Go to page'} className="quick-dialog" onClick={event=>event.stopPropagation()} onKeyDown={event=>{if(event.key==='Escape')close()}}>
+      <div className="quick-input"><Icon name="search"/><input ref={inputRef} value={query} onChange={event=>setQuery(event.target.value)} placeholder={locale==='fa'?'جست‌وجوی بخش‌ها…':'Find a page…'} aria-label={locale==='fa'?'جست‌وجوی بخش‌ها':'Find a page'} /><button type="button" className="icon-button" onClick={close} aria-label={locale==='fa'?'بستن':'Close'}><Icon name="close"/></button></div>
+      <div className="quick-results">{matches.length?matches.map(item=><Link key={item.path} to={item.path} onClick={close} className="quick-result"><Icon name={item.icon}/><span>{t[item.key]}</span><Icon name="arrow" size={16}/></Link>):<p className="muted quick-empty">{t.empty}</p>}</div>
+      <div className="quick-hint">{locale==='fa'?'فقط برای جابه‌جایی بین بخش‌ها؛ جست‌وجوی اسناد در صفحات مربوط انجام می‌شود.':'Navigate sections; search records inside each workspace.'}</div>
     </div>
+  </div>
+}
+
+export function Shell() {
+  const {session,loading,loadError,locale,setLocale,logout} = useApplication()
+  const [logoutError,setLogoutError] = useState<string|null>(null)
+  const [mobileOpen,setMobileOpen] = useState(false)
+  const [quickOpen,setQuickOpen] = useState(false)
+  const location = useLocation()
+  const t = languages[locale]
+  const current = allItems.find(item=>item.path===location.pathname)
+  useEffect(()=>{
+    const keyHandler = (event:KeyboardEvent) => {
+      if ((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k') {event.preventDefault();setQuickOpen(open=>!open)}
+      if (event.key==='Escape'){setQuickOpen(false);setMobileOpen(false)}
+    }
+    window.addEventListener('keydown',keyHandler)
+    return ()=>window.removeEventListener('keydown',keyHandler)
+  },[])
+  useEffect(()=>{setMobileOpen(false)},[location.pathname])
+  if (loading) return <main className="center"><Spinner/></main>
+  if (loadError) return <main className="center"><div className="panel" role="alert"><p>{loadError}</p><button type="button" onClick={()=>window.location.reload()}>{t.retry}</button></div></main>
+  if (!session) return <Login/>
+  return <div className="app-layout" dir={locale==='fa'?'rtl':'ltr'} lang={locale}>
+    <a className="skip-link" href="#main-content">{locale==='fa'?'رفتن به محتوای اصلی':'Skip to main content'}</a>
+    {mobileOpen&&<button className="sidebar-scrim" aria-label={locale==='fa'?'بستن منو':'Close menu'} onClick={()=>setMobileOpen(false)}/>}
+    <aside className={`app-sidebar ${mobileOpen?'is-open':''}`}>
+      <Link to="/" className="app-brand" onClick={()=>setMobileOpen(false)} aria-label={t.app}>
+        <span className="app-brand-symbol" aria-hidden="true"><Icon name="ledger" size={23}/></span>
+        <span><strong>{t.app}</strong><small>{locale==='fa'?'مدیریت مالی':'Business finance'}</small></span>
+      </Link>
+      <div className="sidebar-context"><span className="context-caption">{locale==='fa'?'شرکت شما':'YOUR COMPANY'}</span><span className="context-name" title={session.company.name}>{session.company.name}</span></div>
+      <Navigation close={()=>setMobileOpen(false)}/>
+      <div className="sidebar-bottom">
+        <Link className="nav-link assistant-nav-link" to="/assistant" onClick={()=>setMobileOpen(false)} activeProps={{className:'nav-link assistant-nav-link active'}}><Icon name="assistant"/><span>{t.assistant}</span></Link>
+        <div className="signed-in-user"><span className="user-avatar">{session.user.displayName.trim().slice(0,1).toUpperCase()}</span><span className="user-description"><strong>{session.user.displayName}</strong><small dir="ltr">{session.user.username}</small></span></div>
+        {logoutError&&<p className="nav-error" role="alert">{logoutError}</p>}
+        <button type="button" className="nav-link signout-link" onClick={()=>{setLogoutError(null);void logout().catch(error=>setLogoutError(error instanceof Error?error.message:String(error)))}}><Icon name="logout"/><span>{t.signOut}</span></button>
+      </div>
+    </aside>
+    <div className="app-workspace">
+      <header className="app-topbar">
+        <div className="topbar-leading"><button type="button" className="icon-button mobile-nav-toggle" onClick={()=>setMobileOpen(true)} aria-label={locale==='fa'?'باز کردن منو':'Open menu'} aria-expanded={mobileOpen}><Icon name="menu"/></button>
+          <div className="topbar-breadcrumb"><span>{t.app}</span><Icon name="chevron" size={15}/><strong>{current?t[current.key]:t.home}</strong></div>
+        </div>
+        <div className="topbar-actions">
+          <button type="button" className="search-trigger" onClick={()=>setQuickOpen(true)} aria-label={locale==='fa'?'رفتن به بخش؛ کنترل کی':'Navigate sections; Control K'}><Icon name="search" size={17}/><span>{locale==='fa'?'رفتن به بخش…':'Go to…'}</span><kbd>⌘ K</kbd></button>
+          <label className="language-control"><Icon name="globe" size={17}/><span className="sr-only">{t.language}</span><select aria-label={t.language} value={locale} onChange={event=>setLocale(event.target.value==='fa'?'fa':'en')}><option value="fa">فارسی</option><option value="en">English</option></select></label>
+          <Link to="/assistant" className="assistant-top-action"><Icon name="assistant" size={18}/><span>{t.assistant}</span></Link>
+        </div>
+      </header>
+      <main id="main-content" tabIndex={-1}><Outlet/></main>
+    </div>
+    {quickOpen&&<QuickNavigate close={()=>setQuickOpen(false)}/>}
   </div>
 }

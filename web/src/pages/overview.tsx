@@ -5,7 +5,7 @@ import { money, type Currency, type List, type FinancialSummary } from '../lib/a
 import { languages } from '../lib/i18n'
 
 export function Overview() {
-  const { companyId, call, locale } = useApplication()
+  const {  call, locale } = useApplication()
   const [summary, setSummary] = useState<FinancialSummary | null>(null)
   const [currencies, setCurrencies] = useState<Currency[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -18,7 +18,7 @@ export function Overview() {
       .catch(cause => { if (active) setError(cause instanceof Error ? cause.message : String(cause)) })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [companyId, call])
+  }, [ call])
   const decimals = currencies.find(c => c.code === summary?.baseCurrency)?.decimals ?? 0
   return <Page title={languages[locale].home} description={locale === 'fa' ? 'خلاصه‌ای از وضعیت مالی شرکت بر اساس دفتر کل ثبت‌شده.' : 'Company balances derived from posted journal entries.'}>
     {loading && <Spinner/>}<Alert text={error} type="info"/>
