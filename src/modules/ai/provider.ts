@@ -39,8 +39,25 @@ export async function completeChat(input: {
       headers: { authorization: `Bearer ${input.apiKey}`, 'content-type': 'application/json' }, body: JSON.stringify(request),
     })
     if (!response.ok) return aiError('PROVIDER_UNAVAILABLE', `AI provider request failed (HTTP ${response.status})`)
-    const raw = await response.text()
-    if (raw.length > 500000) return aiError('PROVIDER_RESPONSE_INVALID', 'AI provider response exceeded size limit')
+    // Bound bytes while streaming: response.text() would first buffer an untrusted
+    // provider response without any effective upper limit.
+    const reader = response.body?.getReader()
+    if (!reader) return aiError('PROVIDER_RESPONSE_INVALID', 'Provider returned an empty response')
+    const chunks: Buffer[] = []
+    let receivedBytes = 0
+    try {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        receivedBytes += value.byteLength
+        if (receivedBytes > 500_000) {
+          controller.abort()
+          return aiError('PROVIDER_RESPONSE_INVALID', 'AI provider response exceeded size limit')
+        }
+        chunks.push(Buffer.from(value))
+      }
+    } finally { reader.releaseLock() }
+    const raw = Buffer.concat(chunks, receivedBytes).toString('utf8')
     let payload: CompletionResponse
     try { payload = JSON.parse(raw) as CompletionResponse } catch { return aiError('PROVIDER_RESPONSE_INVALID', 'Provider returned invalid JSON') }
     const choice = payload.choices?.[0]
