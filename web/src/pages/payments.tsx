@@ -2,6 +2,8 @@ import { AskAssistant } from '../components/ask-assistant'
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link, useSearch } from '@tanstack/react-router'
 import { useApplication } from '../app/context'
+import { Icon } from '../components/icons'
+import { displayDate } from '../lib/dates'
 import { Alert, Empty, Field, Page, Panel, Spinner, Submit } from '../components/ui'
 import { ActionDialog, FilterTabs, SearchBox, SectionHeading, Status, SummaryValue } from '../components/workflow'
 import { ApiError, majorToMinor, money, newRequestKey, today, type Account, type Book, type Contact, type Currency, type Invoice, type List, type Payment, type PostingDefaults } from '../lib/api'
@@ -148,10 +150,10 @@ export function Payments() {
       <div className="register-tools"><SearchBox value={search} onChange={setSearch} label={fa?'جست‌وجوی دریافت و پرداخت':'Search payments'}/>
         <FilterTabs label={fa?'وضعیت':'Status'} value={filter} onChange={setFilter} options={[{value:'all',label:fa?'همه':'All'},{value:'draft',label:fa?'پیش‌نویس':'Drafts'},{value:'posted',label:fa?'ثبت‌شده':'Posted'}]}/>
         <button type="button" className="secondary small" onClick={()=>void reload().catch(e=>setError(String(e)))}>{fa?'بازخوانی':'Refresh'}</button></div>
-      {!loading&&(visible.length===0?<Empty message={fa?'سندی یافت نشد.':'No matching records.'}/>:<div className="table-wrap"><table><thead><tr>
+      {!loading&&(visible.length===0?(items.length===0?<div className="empty-workspace"><span className="empty-workspace-symbol"><Icon name="payment" size={26}/></span><h3>{fa?'هنوز دریافت یا پرداختی ثبت نشده':'No payments yet'}</h3><p>{fa?'دریافت‌ها، پرداخت‌ها و تسویه فاکتورها را اینجا مدیریت کنید.':'Record money received, paid, and allocated against invoices.'}</p><button type="button" disabled={!book||!defaults} onClick={startNew}><Icon name="plus" size={17}/>{kind==='receipt'?(fa?'ثبت اولین دریافت':'Record first receipt'):(fa?'ثبت اولین پرداخت':'Record first payment')}</button></div>:<Empty message={fa?'سندی با این فیلتر پیدا نشد.':'No matching documents.'}/>):<div className="table-wrap"><table><thead><tr>
         <th>{fa?'شماره':'Number'}</th><th>{fa?'طرف حساب':'Contact'}</th><th>{fa?'تاریخ':'Date'}</th><th>{fa?'شرح':'Description'}</th><th className="numeric">{fa?'مبلغ':'Amount'}</th><th className="numeric">{fa?'تخصیص‌نیافته':'Unallocated'}</th><th>{fa?'وضعیت':'Status'}</th></tr></thead><tbody>{visible.map(item=><tr key={item.id}>
         <td><button type="button" className="table-link" onClick={()=>showDetail(item.id)}>{item.number??(fa?'پیش‌نویس':'Draft')}</button></td>
-        <td>{contactName(item.partyId)}</td><td dir="ltr">{item.paidOn}</td><td className="cell-description">{item.description}</td>
+        <td>{contactName(item.partyId)}</td><td><time dateTime={item.paidOn}>{displayDate(item.paidOn,locale)}</time></td><td className="cell-description">{item.description}</td>
         <td className="numeric">{money(item.amountMinor,decimals,locale)}</td><td className="numeric">{item.status==='posted'?money(item.unallocatedMinor,decimals,locale):'—'}</td>
         <td><Status value={item.status}/></td></tr>)}</tbody></table></div>)}
     </Panel>}

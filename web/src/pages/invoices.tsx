@@ -2,6 +2,8 @@ import { AskAssistant } from '../components/ask-assistant'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearch } from '@tanstack/react-router'
 import { useApplication } from '../app/context'
+import { Icon } from '../components/icons'
+import { displayDate } from '../lib/dates'
 import { Alert, Empty, Field, Page, Panel, Spinner, Submit } from '../components/ui'
 import { ActionDialog, FilterTabs, SearchBox, SectionHeading, Status, SummaryValue } from '../components/workflow'
 import { ApiError, majorToMinor, money, newRequestKey, today, type Account, type Book, type Contact, type Currency, type Invoice, type List, type PostingDefaults } from '../lib/api'
@@ -142,9 +144,9 @@ export function Invoices() {
       <div className="register-tools"><SearchBox value={search} onChange={setSearch} label={fa?'جست‌وجوی فاکتورها':'Search invoices'} placeholder={fa?'شماره، شخص یا شرح':'Number, contact or description'}/>
         <FilterTabs label={fa?'وضعیت':'Status'} value={filter} onChange={setFilter} options={[{value:'all',label:fa?'همه':'All'},{value:'draft',label:fa?'پیش‌نویس':'Drafts'},{value:'posted',label:fa?'ثبت‌شده':'Posted'}]}/>
         <button type="button" className="secondary small" onClick={()=>void reload().catch(e=>setError(String(e)))}>{fa?'بازخوانی':'Refresh'}</button></div>
-      {visible.length===0?<Empty message={fa?'فاکتوری با این مشخصات پیدا نشد.':'No matching invoices.'}/>:<div className="table-wrap"><table><thead><tr><th>{fa?'شماره':'Number'}</th><th>{fa?'شخص':'Contact'}</th><th>{fa?'تاریخ':'Date'}</th><th>{fa?'شرح':'Description'}</th><th className="numeric">{fa?'مبلغ':'Amount'}</th><th className="numeric">{fa?'مانده':'Outstanding'}</th><th>{fa?'وضعیت':'Status'}</th></tr></thead><tbody>
+      {visible.length===0?(items.length===0?<div className="empty-workspace"><span className="empty-workspace-symbol"><Icon name="invoice" size={26}/></span><h3>{fa?'هنوز فاکتوری ثبت نشده':'No invoices yet'}</h3><p>{fa?'فاکتورهای فروش و خرید را از این بخش ایجاد و پیگیری کنید.':'Create and manage sales and purchase documents in one place.'}</p><button type="button" disabled={!book||!defaults} onClick={beginNew}><Icon name="plus" size={17}/>{fa?'ایجاد اولین فاکتور':'Create first invoice'}</button></div>:<Empty message={fa?'فاکتوری با این فیلتر پیدا نشد.':'No invoices match your filters.'}/>):<div className="table-wrap"><table><thead><tr><th>{fa?'شماره':'Number'}</th><th>{fa?'شخص':'Contact'}</th><th>{fa?'تاریخ':'Date'}</th><th>{fa?'شرح':'Description'}</th><th className="numeric">{fa?'مبلغ':'Amount'}</th><th className="numeric">{fa?'مانده':'Outstanding'}</th><th>{fa?'وضعیت':'Status'}</th></tr></thead><tbody>
         {visible.map(invoice=><tr key={invoice.id} className="clickable-row"><td><button className="table-link" type="button" onClick={()=>{setDetail(invoice);setView('detail');setError(null)}}>{invoice.number??(fa?'پیش‌نویس':'Draft')}</button></td>
-          <td>{nameFor(invoice.partyId)}</td><td dir="ltr">{invoice.issuedOn}</td><td className="cell-description">{invoice.description}</td>
+          <td>{nameFor(invoice.partyId)}</td><td><time dateTime={invoice.issuedOn} dir="auto">{displayDate(invoice.issuedOn,locale)}</time></td><td className="cell-description">{invoice.description}</td>
           <td className="numeric">{money(invoice.totalMinor,decimals,locale)}</td><td className="numeric">{invoice.status==='posted'?money(invoice.outstandingMinor,decimals,locale):'—'}</td>
           <td><Status value={invoice.status}/></td></tr>)}</tbody></table></div>}
     </Panel>}
@@ -179,7 +181,7 @@ export function Invoices() {
     {view==='detail'&&detail&&<Panel><SectionHeading actions={<div className="document-actions"><button type="button" className="secondary small" onClick={()=>window.print()}>{fa?'چاپ / PDF':'Print / PDF'}</button>
       {detail.status==='draft'&&<><button className="secondary" onClick={()=>beginEdit(detail)}>{fa?'ویرایش':'Edit draft'}</button><button disabled={busy} onClick={()=>setConfirm('post')}>{fa?'ثبت قطعی':'Post invoice'}</button><button className="text-button" disabled={busy} onClick={()=>setConfirm('void')}>{fa?'ابطال پیش‌نویس':'Void draft'}</button></>}
       {detail.status==='posted'&&<button className="secondary small" onClick={()=>{setReverseReason('');setConfirm('reverse')}}>{fa?'برگشت سند':'Reverse document'}</button>}</div>}>{detail.number??(fa?'پیش‌نویس فاکتور':'Draft invoice')} <Status value={detail.status}/></SectionHeading>
-      <div className="record-overview"><SummaryValue label={fa?'شخص':'Contact'} value={nameFor(detail.partyId)}/><SummaryValue label={fa?'تاریخ':'Date'} value={detail.issuedOn}/>
+      <div className="record-overview"><SummaryValue label={fa?'شخص':'Contact'} value={nameFor(detail.partyId)}/><SummaryValue label={fa?'تاریخ':'Date'} value={displayDate(detail.issuedOn,locale)}/>
         <SummaryValue label={fa?'مبلغ فاکتور':'Invoice amount'} value={money(detail.totalMinor,decimals,locale,currency)}/>
         {detail.status==='posted'&&<SummaryValue label={fa?'مانده تسویه‌نشده':'Outstanding'} value={money(detail.outstandingMinor,decimals,locale,currency)}/>}</div>
       <p>{detail.description}</p><div className="table-wrap"><table><thead><tr><th>{fa?'شرح':'Description'}</th><th className="numeric">{fa?'تعداد':'Quantity'}</th><th className="numeric">{fa?'قیمت واحد':'Unit price'}</th><th className="numeric">{fa?'جمع':'Total'}</th></tr></thead><tbody>

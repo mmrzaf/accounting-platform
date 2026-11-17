@@ -1,9 +1,12 @@
 import { AskAssistant } from '../components/ask-assistant'
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useApplication } from '../app/context'
+import { displayDate } from '../lib/dates'
+import { Link } from '@tanstack/react-router'
+import { Icon } from '../components/icons'
 import { Alert, Empty, Field, Page, Panel, Spinner } from '../components/ui'
 import { SearchBox, SectionHeading, SummaryValue } from '../components/workflow'
-import { money, type Account, type Currency, type List, type TrialBalance } from '../lib/api'
+import { ApiError, money, type Account, type Currency, type List, type TrialBalance } from '../lib/api'
 import { minorToMajor } from '../lib/financial'
 import { downloadCsv } from '../lib/export'
 
@@ -25,6 +28,7 @@ export function Ledger() {
   const [offset,setOffset] = useState(0)
   const [ledger,setLedger] = useState<LedgerResult|null>(null)
   const [error,setError] = useState<string|null>(null)
+  const [setupRequired,setSetupRequired] = useState(false)
   const [loading,setLoading] = useState(true)
   const [ledgerLoading,setLedgerLoading] = useState(false)
   const decimals = currencies.find(c=>c.code===trial?.baseCurrency)?.decimals ?? 0
@@ -37,14 +41,14 @@ export function Ledger() {
   useEffect(()=>{let active=true;setLoading(true);setError(null)
     void Promise.all([call<List<Account>>('/api/accounting/accounts'),call<List<Currency>>('/api/accounting/currencies')])
       .then(([a,c])=>{if(active){setAccounts(a.items);setCurrencies(c.items)}})
-      .catch(e=>{if(active)setError(e instanceof Error?e.message:String(e))})
+      .catch(e=>{if(active){if(e instanceof ApiError&&e.status===404)setSetupRequired(true);else setError(e instanceof Error?e.message:String(e))}})
       .finally(()=>{if(active)setLoading(false)})
     return()=>{active=false}
   },[call])
   useEffect(()=>{let active=true;setLoading(true)
     void call<TrialBalance>(`/api/accounting/trial-balance?${params()}`)
       .then(t=>{if(active)setTrial(t)})
-      .catch(e=>{if(active)setError(e instanceof Error?e.message:String(e))})
+      .catch(e=>{if(active){if(e instanceof ApiError&&e.status===404)setSetupRequired(true);else setError(e instanceof Error?e.message:String(e))}})
       .finally(()=>{if(active)setLoading(false)})
     return()=>{active=false}
   },[call,params])
@@ -77,6 +81,7 @@ export function Ledger() {
     setAssistantSelection({page:'ledger',...(recordId?{record:{type:'account' as const,id:recordId}}:{})})
     return ()=>setAssistantSelection(null)
   },[accountId||undefined,setAssistantSelection])
+  if(setupRequired&&!loading)return <Page title={fa?'حسابداری و دفتر کل':'Accounting & ledger'} description={fa?'گردش حساب‌ها و تراز آزمایشی':'Account movements and trial balance'}><div className="empty-workspace empty-workspace-in-panel"><span className="empty-workspace-symbol"><Icon name="ledger" size={27}/></span><h3>{fa?'ابتدا حسابداری شرکت را راه‌اندازی کنید':'Set up accounting first'}</h3><p>{fa?'برای مشاهده دفتر کل، باید ارز پایه، حساب‌های پایه و دوره مالی را تنظیم کنید. این کار از صفحه نمای کلی انجام می‌شود.':'Choose a base currency, chart of accounts, and fiscal period before viewing the ledger. Setup is available on Overview.'}</p><Link to="/" className="inline-action">{fa?'رفتن به راه‌اندازی':'Go to setup'} <Icon name="chevron" size={16}/></Link></div></Page>
   return <Page title={fa?'حسابداری و دفتر کل':'Accounting & ledger'}
     description={fa?'مانده حساب‌ها و گردش اسناد قطعی، محاسبه‌شده از دفتر کل':'Posted journal balances and account movements, derived from the general ledger'}
     actions={<AskAssistant prompt={fa?'مانده‌ها و تغییرات حساب‌های این صفحه را توضیح بده':'Explain account balances and changes in this ledger'}/>}>
@@ -111,7 +116,7 @@ export function Ledger() {
         <div className="summary-line ledger-balances"><span>{fa?'مانده ابتدای بازه':'Opening balance'}: <strong dir="ltr">{money(ledger.openingNetDebitMinor,decimals,locale,currency)}</strong></span>
           <span>{fa?'مانده پایان بازه':'Closing balance'}: <strong dir="ltr">{money(ledger.closingNetDebitMinor,decimals,locale,currency)}</strong></span></div>
         {ledger.rows.length===0?<Empty message={fa?'گردشی در این بازه وجود ندارد.':'No posted movements in this range.'}/>:<div className="table-wrap"><table><thead><tr><th>{fa?'تاریخ':'Date'}</th><th>{fa?'شرح سند':'Description'}</th><th className="numeric">{fa?'بدهکار':'Debit'}</th><th className="numeric">{fa?'بستانکار':'Credit'}</th><th className="numeric">{fa?'مانده':'Balance'}</th></tr></thead>
-          <tbody>{ledger.rows.map(row=><tr key={row.lineId}><td dir="ltr">{row.date}</td><td className="cell-description">{row.description}</td><td className="numeric">{money(row.debitMinor,decimals,locale)}</td>
+          <tbody>{ledger.rows.map(row=><tr key={row.lineId}><td><time dateTime={row.date}>{displayDate(row.date,locale)}</time></td><td className="cell-description">{row.description}</td><td className="numeric">{money(row.debitMinor,decimals,locale)}</td>
             <td className="numeric">{money(row.creditMinor,decimals,locale)}</td><td className="numeric">{money(row.balanceMinor,decimals,locale)}</td></tr>)}</tbody></table></div>}
         <div className="register-pagination"><span className="muted">{ledger.totalRows===0?'0':`${offset+1}–${Math.min(offset+ledger.rows.length,ledger.totalRows)}`} / {ledger.totalRows}</span>
           <div className="document-actions"><button type="button" className="secondary small" disabled={offset===0} onClick={()=>setOffset(Math.max(0,offset-pageSize))}>{fa?'قبلی':'Previous'}</button>

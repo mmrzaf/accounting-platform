@@ -2,6 +2,8 @@ import { AskAssistant } from '../components/ask-assistant'
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link, useSearch } from '@tanstack/react-router'
 import { useApplication } from '../app/context'
+import { displayDate } from '../lib/dates'
+import { Icon } from '../components/icons'
 import { Alert, Empty, Field, Page, Panel, Spinner, Submit } from '../components/ui'
 import { ActionDialog, FilterTabs, SearchBox, SectionHeading, Status } from '../components/workflow'
 import { newRequestKey, type Contact, type Invoice, type List, type Payment } from '../lib/api'
@@ -80,7 +82,7 @@ export function Contacts() {
       <Panel><SectionHeading>{fa?'فهرست اشخاص':'Directory'}</SectionHeading>
         <div className="register-tools"><SearchBox value={search} onChange={setSearch} label={fa?'جست‌وجوی اشخاص':'Search contacts'}/>
           <FilterTabs label={fa?'وضعیت':'Status'} value={filter} onChange={setFilter} options={[{value:'active',label:fa?'فعال':'Active'},{value:'all',label:fa?'همه':'All'},{value:'archived',label:fa?'بایگانی':'Archived'}]}/></div>
-        {loading?<Spinner/>:visible.length===0?<Empty/>:<div className="contact-list" role="list">{visible.map(c=><button role="listitem" className={`contact-list-item ${selectedNow?.id===c.id?'selected':''}`} key={c.id} onClick={()=>{setSelected(c);setEditing(false);setAdding(false);setError(null)}}>
+        {loading?<Spinner/>:visible.length===0?(items.length===0?<div className="empty-workspace"><span className="empty-workspace-symbol"><Icon name="contacts" size={26}/></span><h3>{fa?'هنوز شخصی ثبت نشده است':'Your contact directory is empty'}</h3><p>{fa?'مشتریان و تأمین‌کنندگان را اینجا نگه دارید؛ هر شخص می‌تواند هر دو نقش را داشته باشد.':'Add customers and suppliers here. A contact can have both roles.'}</p><button type="button" onClick={startNew}><Icon name="plus" size={16}/>{fa?'افزودن نخستین شخص':'Add first contact'}</button></div>:<Empty message={fa?'شخصی با این فیلتر پیدا نشد.':'No contacts match these filters.'}/>):<div className="contact-list" role="list">{visible.map(c=><button role="listitem" className={`contact-list-item ${selectedNow?.id===c.id?'selected':''}`} key={c.id} onClick={()=>{setSelected(c);setEditing(false);setAdding(false);setError(null)}}>
           <span className="contact-monogram" aria-hidden="true">{c.displayName.trim().slice(0,1).toUpperCase()}</span><span className="contact-list-name"><strong>{c.displayName}</strong><small className="muted" dir="ltr">{c.code??(fa?'بدون کد':'No code')}</small></span><Status value={c.status}/>
         </button>)}</div>}
       </Panel>
@@ -96,12 +98,12 @@ export function Contacts() {
             <div className="record-overview"><div className="summary-value"><span className="muted">{fa?'فاکتورهای اخیر':'Recent invoices'}</span><strong>{relatedInvoices.length}</strong></div><div className="summary-value"><span className="muted">{fa?'دریافت و پرداخت اخیر':'Recent payments'}</span><strong>{relatedPayments.length}</strong></div></div>
             <SectionHeading>{fa?'گردش اخیر':'Recent activity'}</SectionHeading>
             {relatedInvoices.length===0&&relatedPayments.length===0?<Empty message={fa?'سند اخیری در دسترس نیست.':'No recent accessible documents.'}/>:<div className="activity-list">
-              {relatedInvoices.slice(0,8).map(invoice=><div className="activity-row" key={invoice.id}><span><strong>{invoice.kind==='sale'?(fa?'فروش':'Sale'):(fa?'خرید':'Purchase')}</strong> · {invoice.description}</span><span dir="ltr">{invoice.issuedOn}</span></div>)}
-              {relatedPayments.slice(0,8).map(payment=><div className="activity-row" key={payment.id}><span><strong>{payment.kind==='receipt'?(fa?'دریافت':'Receipt'):(fa?'پرداخت':'Payment')}</strong> · {payment.description}</span><span dir="ltr">{payment.paidOn}</span></div>)}
+              {relatedInvoices.slice(0,8).map(invoice=><div className="activity-row" key={invoice.id}><span><strong>{invoice.kind==='sale'?(fa?'فروش':'Sale'):(fa?'خرید':'Purchase')}</strong> · {invoice.description}</span><time dateTime={invoice.issuedOn}>{displayDate(invoice.issuedOn,locale)}</time></div>)}
+              {relatedPayments.slice(0,8).map(payment=><div className="activity-row" key={payment.id}><span><strong>{payment.kind==='receipt'?(fa?'دریافت':'Receipt'):(fa?'پرداخت':'Payment')}</strong> · {payment.description}</span><time dateTime={payment.paidOn}>{displayDate(payment.paidOn,locale)}</time></div>)}
             </div>}
             <p className="muted fine-print">{fa?'فعالیت‌ها تنها از آخرین اسناد قابل دسترسی نمایش داده می‌شوند؛ برای گزارش کامل از بخش گزارش‌ها استفاده کنید.':'This is a preview of recent accessible records, not a full account statement.'}</p>
             <div className="document-actions"><Link to="/invoices" className="inline-action">{fa?'فاکتورها':'Invoices'}</Link><Link to="/payments" className="inline-action">{fa?'دریافت و پرداخت':'Payments'}</Link></div>
-          </>:<div className="detail-placeholder"><h2>{fa?'پرونده شخص':'Contact profile'}</h2><p className="muted">{fa?'شخصی را از فهرست انتخاب کنید یا شخص جدید بسازید.':'Select a contact to inspect its profile, or add a new contact.'}</p></div>}
+          </>:<div className="detail-placeholder"><span className="empty-workspace-symbol"><Icon name="contacts" size={24}/></span><h2>{fa?'پرونده شخص':'Contact profile'}</h2><p className="muted">{fa?'شخصی را از فهرست انتخاب کنید یا شخص جدید بسازید.':'Select a contact to inspect its profile, or add a new contact.'}</p></div>}
       </Panel>
     </div>
     <ActionDialog open={confirmArchive} title={selectedNow?.status==='active'?(fa?'بایگانی شخص':'Archive contact'):(fa?'فعال‌سازی شخص':'Restore contact')}
