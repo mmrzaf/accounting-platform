@@ -16,7 +16,7 @@ function priceDecimals(book: Book | null, currencies: Currency[]) {
 }
 
 export function Invoices() {
-  const { call, locale, setAssistantSelection } = useApplication()
+  const { call, locale, session, setAssistantSelection } = useApplication()
   const recordSearch=useSearch({from:'/invoices'}).record
   const fa = locale === 'fa'
   const formRef = useRef<HTMLFormElement>(null)
@@ -176,7 +176,7 @@ export function Invoices() {
         </div>
       </form>
     </Panel>}
-    {view==='detail'&&detail&&<Panel><SectionHeading actions={<div className="document-actions">
+    {view==='detail'&&detail&&<Panel><SectionHeading actions={<div className="document-actions"><button type="button" className="secondary small" onClick={()=>window.print()}>{fa?'چاپ / PDF':'Print / PDF'}</button>
       {detail.status==='draft'&&<><button className="secondary" onClick={()=>beginEdit(detail)}>{fa?'ویرایش':'Edit draft'}</button><button disabled={busy} onClick={()=>setConfirm('post')}>{fa?'ثبت قطعی':'Post invoice'}</button><button className="text-button" disabled={busy} onClick={()=>setConfirm('void')}>{fa?'ابطال پیش‌نویس':'Void draft'}</button></>}
       {detail.status==='posted'&&<button className="secondary small" onClick={()=>{setReverseReason('');setConfirm('reverse')}}>{fa?'برگشت سند':'Reverse document'}</button>}</div>}>{detail.number??(fa?'پیش‌نویس فاکتور':'Draft invoice')} <Status value={detail.status}/></SectionHeading>
       <div className="record-overview"><SummaryValue label={fa?'شخص':'Contact'} value={nameFor(detail.partyId)}/><SummaryValue label={fa?'تاریخ':'Date'} value={detail.issuedOn}/>
@@ -186,6 +186,21 @@ export function Invoices() {
         {detail.lines.map(line=><tr key={line.id}><td>{line.description}</td><td className="numeric">{milliToQuantity(line.quantityMilli)}</td><td className="numeric">{money(line.unitPriceMinor,decimals,locale)}</td><td className="numeric">{money(line.lineTotalMinor,decimals,locale)}</td></tr>)}</tbody></table></div>
       {detail.status==='posted'&&<p className="document-helper">{fa?'این سند در دفتر کل ثبت شده و ویرایش مستقیم آن مجاز نیست. برای اصلاح از برگشت سند یا یادداشت بستانکار استفاده کنید.':'This invoice is posted and cannot be edited. Use reversal or credit-note workflows for corrections.'}</p>}
       {detail.status==='posted'&&<Link to="/payments" className="inline-action">{fa?'ثبت دریافت/پرداخت':'Record a receipt or payment'}</Link>}
+      <article className="printable-invoice" lang={locale} dir={fa?'rtl':'ltr'}>
+        <header className="print-invoice-header"><div><strong>{session?.company.name??''}</strong>
+          <h1>{detail.kind==='sale'?(fa?'فاکتور فروش':'Sales invoice'):(fa?'فاکتور خرید':'Purchase invoice')}</h1></div>
+          <div><span>{detail.number??(fa?'پیش‌نویس':'Draft')}</span><small>{detail.status.toUpperCase()}</small></div></header>
+        <dl className="print-invoice-details"><div><dt>{fa?'طرف حساب':'Contact'}</dt><dd>{nameFor(detail.partyId)}</dd></div>
+          <div><dt>{fa?'تاریخ':'Date'}</dt><dd dir="ltr">{detail.issuedOn}</dd></div>
+          <div><dt>{fa?'شرح':'Description'}</dt><dd>{detail.description}</dd></div></dl>
+        <table><thead><tr><th>#</th><th>{fa?'شرح':'Description'}</th><th>{fa?'تعداد':'Quantity'}</th><th>{fa?'قیمت واحد':'Unit price'}</th><th>{fa?'مبلغ':'Amount'}</th></tr></thead><tbody>
+          {detail.lines.map((line,index)=><tr key={line.id}><td>{index+1}</td><td>{line.description}</td><td dir="ltr">{milliToQuantity(line.quantityMilli)}</td>
+            <td dir="ltr">{money(line.unitPriceMinor,decimals,locale)}</td><td dir="ltr">{money(line.lineTotalMinor,decimals,locale)}</td></tr>)}
+        </tbody></table>
+        <div className="print-invoice-totals"><div><span>{fa?'جمع کل':'Total'}</span><strong dir="ltr">{money(detail.totalMinor,decimals,locale,currency)}</strong></div>
+          {detail.status==='posted'&&<div><span>{fa?'مانده':'Outstanding'}</span><strong dir="ltr">{money(detail.outstandingMinor,decimals,locale,currency)}</strong></div>}</div>
+        <footer>{fa?'نسخه داخلی نرم‌افزار؛ لزوماً صورتحساب رسمی یا مالیاتی نیست.':'Internal accounting copy; not a certified statutory/tax invoice.'}</footer>
+      </article>
     </Panel>}
     <ActionDialog open={confirm!==null} busy={busy} onClose={()=>setConfirm(null)} onConfirm={()=>void performAction()}
       title={confirm==='post'?(fa?'ثبت قطعی فاکتور':'Post invoice'):confirm==='void'?(fa?'ابطال پیش‌نویس':'Void draft'):(fa?'برگشت سند ثبت‌شده':'Reverse posted invoice')}

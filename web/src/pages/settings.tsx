@@ -65,6 +65,11 @@ export function Settings(){
         <Field label={locale==='fa'?'تاریخ پایان':'End date'}>{id=><input id={id} type="date" dir="ltr" value={periodEnd} onChange={e=>setPeriodEnd(e.target.value)} required/>}</Field>
         <div className="form-actions"><Submit busy={busy}>{languages[locale].create}</Submit></div>
       </form></Panel>
+      {accounts.length===0&&<Panel title={locale==='fa'?'آماده‌سازی سریع سرفصل‌ها':'Start with a basic chart'}>
+        <p className="muted">{locale==='fa'?'برای شروع آزمایشی، هفت حساب پایه همراه با تنظیمات ثبت پیش‌فرض ساخته می‌شود. این یک کدینگ قانونی آماده نیست و پیش از استفاده واقعی باید توسط حسابدار تأیید شود.':'Creates seven basic accounts and posting defaults in one action for a trial installation. This is not a statutory chart and must be reviewed by an accountant before real use.'}</p>
+        <button type="button" disabled={busy} onClick={()=>void execute(()=>call('/api/accounting/starter-chart',{locale}))}>
+          {locale==='fa'?'ایجاد حساب‌های پایه':'Create basic accounts'}</button>
+      </Panel>}
       <Panel title={locale==='fa'?'حساب جدید':'Add ledger account'}><form className="form-grid" onSubmit={addAccount}>
         <Field label={locale==='fa'?'کد حساب':'Account code'}>{id=><input id={id} value={code} onChange={e=>setCode(e.target.value)} dir="ltr" required/>}</Field>
         <Field label={languages[locale].name}>{id=><input id={id} value={name} onChange={e=>setName(e.target.value)} required/>}</Field>

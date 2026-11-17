@@ -148,7 +148,7 @@ td.numeric,th.numeric { font-variant-numeric: tabular-nums; text-align: end; dir
 .login-panel p.muted { margin: 0 }
 .login-panel button[type='submit'] { width: 100% }
 
-/* AI result is still a backend-driven view. Multi-step assistant UX follows in milestone 4. */
+/* Historical AI result utility used only by non-conversational views. */
 .ai-result { white-space: pre-wrap; word-break: break-word; line-height: 1.8 }
 .ai-result pre { direction: ltr; text-align: left; white-space: pre-wrap; overflow: auto; font-size: .82rem; background: var(--surface-alt); padding: 14px; border: 1px solid var(--line); border-radius: 7px }
 
@@ -296,4 +296,30 @@ td.numeric,th.numeric { font-variant-numeric: tabular-nums; text-align: end; dir
   .assistant-preview-line { grid-template-columns: minmax(0,1fr) 45px 100px; padding: 8px }
   .assistant-composer-actions { align-items: flex-start; flex-wrap: wrap }
   .assistant-drawer { width: 100vw }
+}
+
+/* Financial-document print output is intentionally separated from interactive controls. */
+.printable-invoice { display: none }
+@media print {
+  @page { size: A4; margin: 15mm }
+  html,body,#root { background: white !important; overflow: visible !important; color: #111 !important }
+  body * { visibility: hidden }
+  .printable-invoice,.printable-invoice * { visibility: visible }
+  .printable-invoice {
+    display: block !important; position: absolute; top: 0; inset-inline: 0;
+    width: 100%; max-width: none; padding: 0; margin: 0; background: white !important;
+    font-size: 11pt; line-height: 1.6; color: #111 !important;
+  }
+  .printable-invoice h1 { font-size: 18pt; margin: 4mm 0 }
+  .print-invoice-header { display: flex; justify-content: space-between; align-items: start; border-bottom: 1px solid #888; padding-bottom: 6mm; margin-bottom: 6mm }
+  .print-invoice-header div:last-child { display: grid; text-align: end; gap: 2mm }
+  .print-invoice-details { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; margin-bottom: 7mm }
+  .print-invoice-details div { display: grid; gap: 1mm }
+  .print-invoice-details dt { color: #555; font-size: 9pt }
+  .print-invoice-details dd { margin: 0; font-weight: 600 }
+  .printable-invoice table { width: 100%; border-collapse: collapse; font-size: 10pt }
+  .printable-invoice th,.printable-invoice td { border: 1px solid #aaa; padding: 2.5mm; white-space: normal; background: white !important }
+  .print-invoice-totals { margin: 8mm 0; margin-inline-start: auto; width: min(100%,85mm) }
+  .print-invoice-totals div { display: flex; justify-content: space-between; gap: 8mm; padding: 2mm 0; border-bottom: 1px solid #ccc }
+  .printable-invoice footer { margin-top: 12mm; border-top: 1px solid #ccc; padding-top: 3mm; font-size: 8pt; color: #555 }
 }

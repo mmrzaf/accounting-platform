@@ -4,6 +4,8 @@ import { useApplication } from '../app/context'
 import { Alert, Empty, Field, Page, Panel, Spinner } from '../components/ui'
 import { SearchBox, SectionHeading, SummaryValue } from '../components/workflow'
 import { money, type Account, type Currency, type List, type TrialBalance } from '../lib/api'
+import { minorToMajor } from '../lib/financial'
+import { downloadCsv } from '../lib/export'
 
 interface LedgerRow { journalId: string; lineId: string; date: string; description: string; debitMinor: string; creditMinor: string; balanceMinor: string }
 interface LedgerResult { accountCode: string; baseCurrency: string; rows: LedgerRow[]; openingNetDebitMinor: string; closingNetDebitMinor: string; totalRows: number; offset: number; limit: number }
@@ -61,6 +63,15 @@ export function Ledger() {
     setError(null);setOffset(0);setPeriod({from,through})
   }
   function chooseAccount(id:string) {setAccountId(id);setOffset(0)}
+  function exportTrialBalance() {
+    if (!trial) return
+    const header = fa ? ['کد حساب','نام حساب','گروه','مانده بدهکار','مانده بستانکار','ارز پایه'] :
+      ['Account code','Account','Category','Debit balance','Credit balance','Base currency']
+    const rows = trial.rows.map(row=>[row.code,row.name,row.category,
+      minorToMajor(row.balanceDebitMinor,decimals),minorToMajor(row.balanceCreditMinor,decimals),trial.baseCurrency])
+    rows.push(['',fa?'جمع':'TOTAL','',minorToMajor(trial.totalDebitMinor,decimals),minorToMajor(trial.totalCreditMinor,decimals),trial.baseCurrency])
+    downloadCsv(`trial-balance-${period.through||'current'}.csv`,[header,...rows])
+  }
   useEffect(()=>{
     const recordId=accountId||undefined
     setAssistantSelection({page:'ledger',...(recordId?{record:{type:'account' as const,id:recordId}}:{})})
@@ -78,7 +89,7 @@ export function Ledger() {
       </form>
       <p className="muted fine-print">{fa?'تراز آزمایشی مانده تجمعی تا تاریخ پایان است؛ تاریخ آغاز فقط بر گردش انتخاب‌شده اعمال می‌شود.':'Trial balance is cumulative through the end date; the start date only filters account movements.'}</p>
     </Panel>
-    <Panel><SectionHeading actions={<SearchBox value={accountSearch} onChange={setAccountSearch} label={fa?'جست‌وجوی حساب‌ها':'Search accounts'} placeholder={fa?'کد یا عنوان حساب':'Code or name'}/>}>{fa?'تراز آزمایشی':'Trial balance'}</SectionHeading>
+    <Panel><SectionHeading actions={<><SearchBox value={accountSearch} onChange={setAccountSearch} label={fa?'جست‌وجوی حساب‌ها':'Search accounts'} placeholder={fa?'کد یا عنوان حساب':'Code or name'}/><button className="secondary small" type="button" disabled={!trial||loading} onClick={exportTrialBalance}>{fa?'خروجی CSV':'Export CSV'}</button></>}>{fa?'تراز آزمایشی':'Trial balance'}</SectionHeading>
       {loading?<Spinner/>:trial?(visibleAccounts.length===0?<Empty message={fa?'حسابی پیدا نشد.':'No matching accounts.'}/>:<div className="table-wrap"><table><thead><tr><th>{fa?'کد':'Code'}</th><th>{fa?'حساب':'Account'}</th><th>{fa?'گروه':'Category'}</th><th className="numeric">{fa?'بدهکار':'Debit'}</th><th className="numeric">{fa?'بستانکار':'Credit'}</th></tr></thead>
         <tbody>{visibleAccounts.map(row=><tr key={row.accountId} className={row.accountId===accountId?'selected-table-row':''}>
           <td dir="ltr">{row.code}</td><td><button type="button" className="table-link" onClick={()=>chooseAccount(row.accountId)} aria-label={`${fa?'مشاهده گردش':'View movements'} ${row.name}`}>{row.name}</button></td><td>{row.category}</td>
