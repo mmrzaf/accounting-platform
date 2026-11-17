@@ -1,3 +1,4 @@
+import { AiSettings } from '../components/ai-settings'
 import { useEffect, useState, type FormEvent } from 'react'
 import { useApplication } from '../app/context'
 import { Alert, Empty, Field, Page, Panel, Spinner, Submit } from '../components/ui'
@@ -88,5 +89,6 @@ export function Settings(){
         {accounts.length===0?<Empty/>:<div className="table-wrap"><table><thead><tr><th>{locale==='fa'?'کد':'Code'}</th><th>{languages[locale].name}</th><th>{locale==='fa'?'گروه':'Category'}</th></tr></thead><tbody>{accounts.map(a=><tr key={a.id}><td dir="ltr">{a.code}</td><td>{a.name}</td><td>{a.category}</td></tr>)}</tbody></table></div>}
       </Panel>
     </>}
+    <AiSettings/>
   </Page>
 }
