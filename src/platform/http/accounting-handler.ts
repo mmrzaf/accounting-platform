@@ -72,6 +72,12 @@ export function createAccountingHttpHandler(identity: ReturnType<typeof createId
           cashId: required(b['cashId'], 'cashId'),
         }))
       }
+      if (path === '/api/accounting/starter-chart' && method === 'POST') {
+        const b = await body()
+        const locale = b['locale']
+        if (locale !== 'fa' && locale !== 'en') throw new IdentityError('VALIDATION_FAILED','Invalid starter chart language')
+        return response(accounting.initializeStarterChart({ ...scope, locale }),201)
+      }
       if (path === '/api/accounting/currencies') {
         if (method === 'GET') return response({ items: accounting.listCurrencies(scope) })
         const b = await body()

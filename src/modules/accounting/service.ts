@@ -5,6 +5,7 @@ import { createChartService } from './accounts.ts'
 import { createPostingService } from './posting.ts'
 import { createReportingService } from './reporting.ts'
 import { createPostingDefaultsService } from './defaults.ts'
+import { createStarterChartService } from './starter.ts'
 /** Framework-neutral entry point, intended for UI, CLI and AI adapters alike. */
 export function createAccountingService(db: DatabaseSync, { clock = () => new Date() }: {
   clock?: () => Date
@@ -21,5 +22,6 @@ export function createAccountingService(db: DatabaseSync, { clock = () => new Da
     reverseJournal: posting.reverseJournal,
     ...createReportingService(context),
     ...createPostingDefaultsService(context),
+    ...createStarterChartService(context),
   })
 }
