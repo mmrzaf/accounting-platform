@@ -6,8 +6,8 @@ on:
 permissions:
   contents: read
 jobs:
-  typescript-foundation:
-    name: Node ${{ matrix.node }} / ${{ matrix.os }}
+  backend:
+    name: Backend / Node ${{ matrix.node }} / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -23,12 +23,42 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
+      - name: Install Corepack on Node 26 (no longer bundled)
+        if: matrix.node == '26'
+        run: npm install -g corepack@0.36.0
       - name: Enable pinned pnpm
         run: corepack enable
-      - name: Install dependencies with frozen lockfile
+      - name: Install locked dependencies
         run: corepack pnpm install --frozen-lockfile
-      - name: Validate all TypeScript and executable behavior
+      - name: Validate backend and infrastructure
         run: corepack pnpm verify
       - name: Diagnose runtime
         run: corepack pnpm app:doctor -- --json
-# This does not certify TanStack Start, React, Drizzle, or browser E2E: packages are not yet integrated.
+
+  browser:
+    name: Browser / Node 24 / production build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Enable pinned pnpm
+        run: corepack enable
+      - name: Require committed browser dependency lock
+        shell: bash
+        run: |
+          if [ ! -f web/pnpm-lock.yaml ]; then
+            echo '::error::Browser lockfile missing. Read START-HERE.md and commit web/pnpm-lock.yaml before release.'
+            exit 1
+          fi
+      - name: Install browser dependencies reproducibly
+        run: corepack pnpm --dir web install --frozen-lockfile
+      - name: Typecheck browser
+        run: corepack pnpm --dir web check
+      - name: Build browser production bundle
+        run: corepack pnpm --dir web build
+      - name: Check compiled index exists
+        shell: bash
+        run: test -f web/dist/index.html
+# A browser E2E and accessibility job is still a release blocker, not an omitted success.
