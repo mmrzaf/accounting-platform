@@ -1,10 +1,25 @@
 /** Import boundary guard for the current modular monolith skeleton. */
 import { readFileSync, readdirSync } from 'node:fs'
-import { dirname, join, resolve, relative } from 'node:path'
+import { dirname, join, resolve, relative, sep, isAbsolute } from 'node:path'
 
 const root = process.cwd()
 const src = resolve(root, 'src')
 const errors: string[] = []
+const moduleDependencies: Record<string, readonly string[]> = {
+  identity: [],
+  accounting: ['identity'],
+  trading: ['identity', 'accounting'],
+  ai: ['identity', 'accounting', 'trading'],
+  documents: ['identity', 'accounting', 'trading'],
+  imports: ['identity', 'accounting', 'trading'],
+  inventory: ['identity', 'accounting', 'trading'],
+  reports: ['identity', 'accounting', 'trading'],
+  tax: ['identity', 'accounting', 'trading'],
+}
+function inside(base: string, path: string): boolean {
+  const rel = relative(base, path)
+  return rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel)
+}
 let checked = 0
 function walk(directory: string): void {
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
@@ -26,11 +41,23 @@ function inspect(file: string): void {
     const specifier = match[1]
     if (!specifier) continue
     const target = resolve(dirname(file), specifier)
-    if (!target.startsWith(src + '/')) continue
+    if (!inside(src, target)) continue
     const targetLayer = layer(target)
-    if (own === 'shared' && targetLayer !== 'shared') errors.push(`${relative(root,file)}: shared cannot import ${specifier}`)
+    if (own === 'modules' && targetLayer === 'modules') {
+      const from = relative(join(src, 'modules'), file).split(sep)[0]!
+      const to = relative(join(src, 'modules'), target).split(sep)[0]!
+      if (from !== to && !moduleDependencies[from]?.includes(to))
+        errors.push(`${relative(root, file)}: module ${from} cannot depend on ${to}`)
+    }
     if (own === 'modules' && (targetLayer === 'ui' || targetLayer === 'app')) errors.push(`${relative(root,file)}: domain cannot import ${specifier}`)
     if (own === 'platform' && targetLayer === 'ui') errors.push(`${relative(root,file)}: platform cannot import ${specifier}`)
+    if (own === 'platform' && targetLayer === 'modules' &&
+        !['http', 'server'].includes(relative(join(src, 'platform'), file).split(sep)[0]!))
+      errors.push(`${relative(root, file)}: only platform HTTP/server adapters may import modules`)
+    if (own === 'modules' && targetLayer === 'platform' &&
+        !['database'].includes(relative(join(src, 'platform'), target).split(sep)[0]!))
+      errors.push(`${relative(root, file)}: modules must not depend on HTTP, server, backup or configuration adapters`)
+
     if (own === 'ui' && (targetLayer === 'platform' || targetLayer === 'modules')) errors.push(`${relative(root,file)}: ui can only import shared contracts, not ${specifier}`)
   }
 }
