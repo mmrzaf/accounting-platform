@@ -1,44 +1,17 @@
-# React browser client
+# React client — development and verification
 
-The browser application lives in `web/`. Organization administration includes company creation, users and role assignments, using the existing identity endpoints. It uses React, TanStack Router, TypeScript, Vite, and semantic/native form controls. Both Persian RTL and English LTR are supported in the main shell; date inputs currently use the browser's Gregorian date picker. This is **not** a finished accessibility or localization certification.
+The client lives in `web/`: React, TanStack Router, Vite and TypeScript. The Node HTTP server hosts `web/dist` in production. There is no second backend framework. **Company** is the sole security/ownership boundary; login uses username and password only. Financial mutations are performed by authenticated service endpoints, never by client-side ledger calculations.
 
-## Develop
-
-On a machine with working npm registry access and Node 24 (Node 22.16+ and 26 are compatibility targets):
+After a connected developer resolves and commits `web/pnpm-lock.yaml`, use:
 
 ```sh
-# Node 26 only: npm install -g corepack@0.36.0 (not bundled)
-corepack enable
-corepack pnpm install --frozen-lockfile
-corepack pnpm db:migrate
-# Bootstrap a new organization from the CLI as described in README.md
-corepack pnpm app:serve
-
-# In a second terminal:
-corepack pnpm --dir web install
-corepack pnpm --dir web dev
+pnpm install --frozen-lockfile
+pnpm --dir web install --frozen-lockfile
+pnpm run web:check
+pnpm run web:build
+pnpm run app:serve
 ```
 
-Vite development URL: `http://127.0.0.1:5173`. Requests to `/api` are proxied to the loopback Node server on port 3000, with a development-only Origin rewrite so the same-origin CSRF defense works. **Never deploy the Vite dev server to users or open it to the LAN.** The backend must use `APP_PUBLIC_ORIGIN=http://127.0.0.1:3000` in this setup.
+For development start backend and then `pnpm run web:dev` in another terminal. Verify normal workflows in Persian RTL and English LTR. The current source contains invoice, payment, contact, accounting ledger and administration workspaces. Currency/quantity previews use exact `bigint` and ties-to-even rounding; posted accounting data comes from the server.
 
-## Build and serve
-
-```sh
-corepack pnpm --dir web check
-corepack pnpm --dir web build
-corepack pnpm app:serve
-```
-
-When `web/dist/index.html` is present, the Node HTTP server serves the browser UI and API from the **same origin**. In the initial configuration only loopback binding is supported; LAN access needs a reviewed HTTPS reverse-proxy configuration. The API remains available even if no client bundle has been built.
-
-**Dependency lock warning:** The connected npm registry was unavailable when this client source was authored. `web/` therefore does not yet have a generated `pnpm-lock.yaml`, and its TypeScript + Vite build has not been executed. Generate and commit a real lockfile on a connected machine, review resolved versions and advisories, and use `--frozen-lockfile` thereafter. Do not treat syntax parsing as a production build or release sign-off.
-
-## Design contracts
-
-- UI never constructs journal lines for purchase/sales documents; it calls existing business services through their API.
-- Never cache session tokens in storage; browser cookies remain HttpOnly.
-- API errors are presented as server-provided codes/messages without exposing SQL or stack traces.
-- Monetary input is converted to integer minor units using `bigint`, without `Number` rounding.
-- Financial posting requires permissions, and the UI makes the distinction between drafts and posted documents explicit.
-- Do not automatically treat missing API data, permission denial, or server downtime as “company not configured.”
-- User-visible financial data requires verified cross-company isolation and real E2E testing before rollout.
+**Release blockers:** run and fix real web typechecking, browser build, E2E and accessibility checks; ensure Node 24 and browser compatibility. The absence of npm package access here is not evidence that this client builds.

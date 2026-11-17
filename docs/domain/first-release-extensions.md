@@ -32,14 +32,14 @@ These services are **framework-independent, company-scoped TypeScript backends**
 ## Contact CSV import — `src/modules/imports/contacts.ts`
 
 - Controlled UTF-8 CSV (`displayName,code`), RFC4180 quotes, optional BOM, 1 MiB/500-row limit.
-- Same validated `createContact` use case for dry run and commit. Dry run rolls back all rows and audit entries; returned preview IDs are `null` because they are not persisted. Committed imports are all-or-nothing, batch-fingerprinted, and idempotent. Shared contacts are organization-wide, but batch keys are company-scoped and per-contact idempotency keys are derived from a hash including organization and company.
+- Same validated `createContact` use case for dry run and commit. Dry run rolls back all rows and audit entries; returned preview IDs are `null` because they are not persisted. Committed imports are all-or-nothing, batch-fingerprinted, and idempotent. Contacts, import batches and idempotency keys are all company-scoped.
 - CSV import only; Excel spreadsheets, chart-of-accounts imports, and opening balance imports remain future work. Avoid interpreting imported text as spreadsheet formulas on any future export.
 
 ## Attachments — `src/modules/documents/service.ts`
 
 - Server-chosen local storage paths derived from authenticated UUIDs, never user filenames; UUID-scoped metadata and reference checks; fixed allowed MIME types, maximum 10 MiB, SHA-256 integrity verification on reading.
 - Filesystem write precedes database metadata commit; failures are cleaned up when observed. Crash between writing the file and committing metadata may leave an orphan blob for an operator to reconcile.
-- Data is covered by the complete database-and-attachments backup command. Browser upload/download HTTP routes and filesystem threat acceptance remain missing; do **not** treat this service as a finished document repository.
+- Data is covered by the complete database-and-attachments backup command. Browser upload/download routes exist; end-to-end browser and filesystem threat acceptance remain missing; do **not** treat this service as a finished document repository.
 
 ## Development obligations
 

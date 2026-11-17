@@ -1,21 +1,15 @@
 # Contributor and coding-agent instructions
 
-**Mandatory first read:** [START-HERE.md](START-HERE.md). Run the dependency-free handoff diagnostic before any bootstrap: `node --experimental-strip-types scripts/handoff-check.ts`.
+**Start at [START-HERE.md](START-HERE.md).** Financial correctness, isolation, user experience and recoverability take priority over speed.
 
-This repository contains financial software. Do not treat a successful compilation as proof of accounting correctness.
+1. **Only one security scope: Company.** Each user belongs to one immutable company; sessions determine the scope. Never add organization/tenant entities, company switchers, login slugs or untrusted company IDs as sources of authority. Companies are created through trusted operator CLI; all other users are administered inside their company.
+2. **TypeScript everywhere.** `.ts` for backend/CLI/tests, `.tsx` for React. No `.mjs` runtime modules or JavaScript source files, implicit `any` or broad unchecked casts. Keep application/domain logic independent of HTTP/React/AI.
+3. **Financial invariants are mandatory.** Posted journals/lines are immutable; corrections use reversals; amounts use exact integer/BigInt arithmetic; every journal is balanced and posted transactionally; posting is idempotent. Read [accounting](docs/accounting/accounting-core.md).
+4. **Authorization is server-owned.** Role permissions are company scoped, no direct user-specific permission grants. APIs and AI must call the same validated services. Add adversarial cross-company, duplicate execution and concurrency tests.
+5. **Minimal, professional UI.** The source shell has grouped navigation, a noninteractive company label, username-only sign-in, keyboard navigation and responsive Persian/English layout. Extend its shared design language rather than building disconnected forms. Multi-line invoice, payment/settlement and ledger views are implemented in source but require browser acceptance. No decorative UI complexity.
+6. **AI must be subordinate to business rules.** It is optional and permission-bound. The current one-mutation orchestration is insufficient for the intended full assistant; do not present it as complete.
+7. **Protect secrets and backups.** No passwords, keys, session tokens, or sensitive payloads in URLs, logs, or Git. Backup includes DB and referenced attachment blobs. Run restore drills.
+8. **Quality before declaring done:** `pnpm run verify`, `pnpm run web:check`, `pnpm run web:build`, browsers, RTL/LTR, accessibility and real user workflows. Be explicit about skipped gates. No fake lockfiles or assumed Node/OS support.
+9. **Git:** focused Conventional Commits as `mmrzaf <mohammr.farkhonde12@sharif.edu>`, clean history, no generated artifacts or local databases tracked.
 
-1. **Use TypeScript for source and tests.** Do not add JavaScript or `.mjs` source files. Generated build output belongs outside Git.
-2. **Preserve the accounting invariants.** Never mutate posted journal history, use floating-point amounts as financial truth, bypass transactional posting, or accept client-provided organization identity. Read [ledger invariants](docs/accounting/accounting-core.md) before financial changes.
-3. **Respect authorization at the service boundary.** Organization and company access is derived from a live session; role assignments determine permissions. AI gets no privilege of its own.
-4. **Keep module ownership explicit.** Route adapters decode and validate untrusted input; modules implement use cases; persistence remains under controlled access. Read [module dependencies](docs/development/module-boundaries.md).
-5. **Never modify applied migrations.** Add new migrations, verify exact-money constraints, and preserve composite organization/company database references.
-6. **Handle credentials safely.** No keys, passwords, session tokens, or provider credentials in arguments, URLs, repository files, telemetry or logs. Local administrator recovery must remain CLI-only.
-7. **Use only the complete backup format.** Database-only copies do not preserve attachment integrity; verify and periodically restore complete bundles. See [recovery](docs/operations/complete-backups.md).
-8. **Document actual capability, not intent.** There is a Node HTTP API and React/TanStack Router client source, but its real build and browser acceptance, live-provider acceptance, and production certification remain outstanding. See [implementation status](docs/validation/implementation-status.md).
-9. **Use focused Conventional Commits** (`feat(module): ...`, `fix(module): ...`, `refactor(module): ...`, `test(module): ...`, `docs(module): ...`). Repository author is `mmrzaf <mohammr.farkhonde12@sharif.edu>`.
-
-Before proposing a commit, verify the precise module boundary, add targeted positive/negative/cross-company regression coverage, and normally run `pnpm verify` plus relevant platform checks. This repository has backend verification evidence but not a React dependency installation, bundle build, browser E2E pass, or complete runtime matrix. Never claim unrun checks passed.
-
-## Browser client (React)
-
-The `web/` client is a separate TypeScript/Vite project with TanStack Router. No app credentials or financial business rules belong in this client. It uses only same-origin authenticated HTTP services and exact string minor-unit money conversion. Do not silently change the browser architecture or introduce a second server. The frontend dependency lockfile, typecheck, build and E2E suite remain release gates until executed on a connected machine. Read `docs/development/web-client.md` and ADR 0008 before making browser changes.
+Check [architecture](docs/architecture/modules.md), [company/authorization](docs/security/authorization.md), [decision register](docs/decisions/decision-register.md), and [implementation status](docs/validation/implementation-status.md) before developing further.

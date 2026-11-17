@@ -4,7 +4,7 @@
 
 ## Context
 
-This is a local-first application for one or two organizations with fewer than five concurrent users. The repository already has a fully functional, authenticated Node HTTP API and a persistent SQLite transaction boundary. Introducing TanStack Start as a second runtime would duplicate the HTTP composition root or require a costly reorganization, without a concrete SSR or public SEO requirement.
+This is a local-first application for one or two independent companies with fewer than five concurrent users. The repository already has a fully functional, authenticated Node HTTP API and a persistent SQLite transaction boundary. Introducing TanStack Start as a second runtime would duplicate the HTTP composition root or require a costly reorganization, without a concrete SSR or public SEO requirement.
 
 ## Decision
 
@@ -23,4 +23,4 @@ The browser uses only same-origin, HttpOnly session cookies; the CSRF token is o
 - The frontend has its own `web/` TypeScript build; the Node service serves only `web/dist` and never reads its source tree.
 - Vite's dev proxy rewrites the development-only Origin to the configured backend origin; production has no proxy rewrite.
 - Missing npm registry access prevented dependency installation, lockfile generation, framework typecheck, production build, E2E tests, and visual accessibility validation. These are **blocking**, not implicitly passed.
-- The current frontend covers login, company switching, core invoice and payment workflow, trial balance, company setup, quantity stock, and initial AI actions, and organization/user role administration. It is not an equivalent replacement for every backend feature.
+- The current frontend covers login, core invoice and payment workflow, trial balance, company setup, quantity stock, and initial AI actions, and company user/role administration. It is not an equivalent replacement for every backend feature.

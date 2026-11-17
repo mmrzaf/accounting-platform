@@ -2,7 +2,7 @@
 
 **Code:** `src/modules/trading/service.ts`, `types.ts`; **migration:** `0004_trade_operations.sql`.
 
-Call `createTradingService(db)` through a trusted server/CLI/AI adapter after constructing a database connection with `openDatabase` and applying migrations. Every input includes `sessionToken` and `companyId`; no public method accepts `organizationId`. Transport layers must not expose session tokens in public logs or forward unvalidated model-generated arguments directly.
+Call `createTradingService(db)` through a trusted server/CLI/AI adapter after constructing a database connection with `openDatabase` and applying migrations. Every input includes `sessionToken` and `companyId`; no public method accepts `companyId`. Transport layers must not expose session tokens in public logs or forward unvalidated model-generated arguments directly.
 
 | Domain | Public operations | Authorization |
 |---|---|---|

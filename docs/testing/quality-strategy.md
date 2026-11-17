@@ -6,13 +6,13 @@ Quality is established by evidence, not by the existence of test files.
 
 1. **Pure-domain unit/property:** double-entry balance, monetary rounding, FX, account rules, period invariants, allocation arithmetic, event lifecycle.
 2. **SQLite integration:** FK/composite scopes, rollback, unique idempotency, concurrent writers, migration up/forward tests, backup/restore.
-3. **Transport/service security:** session and CSRF, permission denial, cross-organization and company leakage, AI tool boundaries, secret redaction.
+3. **Transport/service security:** session and CSRF, permission denial, cross-company leakage, AI tool boundaries, secret redaction.
 4. **Browser E2E:** create/post/correct invoice, payments, reporting, AI fallback, Persian RTL/English LTR, keyboard and accessibility.
 5. **Platform smoke:** clean setup and production build/start on Linux, Windows and macOS, offline mode, LAN TLS, native SQLite driver.
 
 ## Definition of done for any future feature
 
-- Documented behavior and boundary, including authorization and organization/company handling.
+- Documented behavior and boundary, including authorization and company isolation.
 - Necessary migrations/constraints, indexed hot paths and rollback or recovery approach.
 - Correct accounting impacts and tests (when applicable); explicit audit provenance.
 - Typed contract and input validation; no duplicated domain rules in UI or AI.

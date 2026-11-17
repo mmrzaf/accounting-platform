@@ -5,7 +5,7 @@ Use coherent, small **Conventional Commits** rather than commits named for proje
 ```
 feat(identity): implement company-scoped roles
 fix(http): reject untrusted session overrides
-test(security): cover cross-organization access
+test(security): cover cross-company access
 refactor(identity): isolate session lifecycle
 docs(architecture): define module boundaries
 chore(ci): test supported Node release lines

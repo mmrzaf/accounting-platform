@@ -1,27 +1,23 @@
-# Identity HTTP contract
+# Identity HTTP API
 
-The framework-neutral handler is in `src/platform/http/identity-handler.ts`. It returns standard Web `Response` objects. **These routes are mounted by the local Node HTTP server and used by the React client.** The browser build is still unverified. The HTTP listener uses a trusted configured origin; do not turn user-provided `Host`/forwarding headers into the request URL. See [bootstrap and security](../operations/identity-bootstrap.md).
+The live backend mounts `src/platform/http/identity-handler.ts`. Login accepts **only `{ username, password }`**; no company slug or selector. The response sets an HttpOnly cookie. `GET /api/auth/session` returns `{ user, company, csrfToken }`; the company is a static identity label, not selectable.
 
-| Method | Path | Permission / behavior |
+| Method | Path | Authorization / behavior |
 |---|---|---|
-| POST | `/api/auth/login` | Anonymous credential verification; sets HttpOnly session cookie, returns CSRF token |
-| GET | `/api/auth/session` | Active session; returns user, organization, CSRF token |
-| POST | `/api/auth/logout` | Session + CSRF; revokes current session |
-| POST | `/api/auth/password` | Session + CSRF; verifies old password, revokes all sessions |
-| GET | `/api/companies` | Session; company list filtered by organization-level `companies.read` or specific `company.read` roles |
-| POST | `/api/companies` | `companies.manage`; automatically grants creator company-admin |
-| GET | `/api/users` | `users.read`; organization users only, excludes password hashes |
-| POST | `/api/users` | `users.manage`; initial user has no roles |
-| PATCH | `/api/users/:id/status` | `users.manage`; last active admin cannot be disabled |
-| POST | `/api/users/:id/reset-password` | `users.manage`; revokes sessions and lockout |
-| POST | `/api/users/:id/unlock` | `users.manage`; clears account lockout |
-| GET | `/api/roles` | `users.read`; organization roles only |
-| POST | `/api/roles` | `roles.manage`; permissions must match role scope |
-| POST | `/api/roles/assign` | `roles.manage`; scope and company membership validated |
-| POST | `/api/roles/revoke` | `roles.manage`; last active admin protected |
-| GET | `/api/roles/assignments?userId=...` | `users.read`; organization user only |
-| GET | `/api/audit?limit=50` | `audit.read`; max 200 records, organization only |
+| POST | `/api/auth/login` | Anonymous credentials; session cookie; no company ID in input |
+| GET | `/api/auth/session` | Authenticated current user and company |
+| POST | `/api/auth/logout` | Session + CSRF; revoke current session |
+| POST | `/api/auth/password` | Current password required; revokes sessions |
+| GET | `/api/company` | `company.read`; own company only |
+| PATCH | `/api/company` | `company.manage`; rename own company only |
+| GET / POST | `/api/users` | `users.read` / `users.manage` for the user's company |
+| PATCH | `/api/users/:id/status` | `users.manage`, last admin protected |
+| POST | `/api/users/:id/reset-password` | `users.manage`, revoke sessions |
+| POST | `/api/users/:id/unlock` | `users.manage` |
+| GET / POST | `/api/roles` | Company roles; read/manage permissions |
+| POST | `/api/roles/assign` | `roles.manage`; company user and role IDs only |
+| POST | `/api/roles/revoke` | `roles.manage`; last admin protected |
+| GET | `/api/roles/assignments?userId=...` | Own company only |
+| GET | `/api/audit?limit=50` | `audit.read`; bounded pagination |
 
-Mutating endpoints require `Content-Type: application/json`, a current session cookie (except login), matching origin and `X-CSRF-Token`. Body limit: 16 KiB. Cookie value is a random session token and is **not returned in JSON**. Session expiration is 12 hours. `SameSite=Strict`, `HttpOnly`, and `Secure` are used for HTTPS; insecure HTTP is only permitted on localhost/loopback for development. No cross-origin access is granted.
-
-Error responses use `{ "error": { "code": "...", "message": "..." }, "requestId": "..." }`; validation 400, unauthenticated 401, forbidden 403, not found 404, conflict 409, unexpected 500. Detailed internal errors and secrets are not returned. Do not assume future finance endpoints inherit this enforcement automatically; call their own application services.
+Mutations require same-origin validation, JSON Content-Type, an authenticated session (except login) and `X-CSRF-Token`. Default 16 KiB JSON body limit. Error shape: `{ error: { code, message }, requestId }` with standard 400/401/403/404/409/500 codes. Credentials, tokens and hashes never appear in response JSON or logs. No public registration or company creation HTTP endpoint. Company creation is trusted CLI-only.

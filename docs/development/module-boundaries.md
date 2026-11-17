@@ -4,7 +4,7 @@ The current project is one TypeScript modular monolith. Application modules have
 
 | Area | Responsibility |
 |---|---|
-| `src/modules/identity` | Authentication, permissions, sessions, organizations and companies |
+| `src/modules/identity` | Authentication, permissions, sessions and companies |
 | `src/modules/accounting` | Accounts, books, exact money, fiscal periods, journal posting and ledger projections |
 | `src/modules/trading` | Contacts, invoice and payment documents, allocations, credits |
 | `src/modules/{ai,inventory,tax,imports,documents,reports}` | Optional AI and focused business services built on identity/trading/accounting |
@@ -19,4 +19,4 @@ The current project is one TypeScript modular monolith. Application modules have
 
 Identity and accounting use short, explicit SQLite transactions. Trading posts journals inside the same transaction as source-document status changes; AI uses those established application services and cannot post through direct SQL. Audit mutations and idempotency are enforced in those operations. SQL migrations remain forward-only and checksummed.
 
-Change protocol: identify the owner, update its contracts, preserve cross-organization permissions, add success/failure/idempotency tests, update documentation and use focused conventional commits. Runtime and browser validation are separate release gates.
+Change protocol: identify the owner, update its contracts, preserve cross-company permissions, add success/failure/idempotency tests, update documentation and use focused conventional commits. Runtime and browser validation are separate release gates.

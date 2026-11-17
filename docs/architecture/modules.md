@@ -4,7 +4,7 @@ The project is a modular monolith. Responsibilities match real source directorie
 
 | Module | Owns | Depends on |
 |---|---|---|
-| Identity | Organizations, companies, sessions, users, RBAC, administrator recovery | SQLite, common platform primitives |
+| Identity | Companies, sessions, users, RBAC, administrator recovery | SQLite, common platform primitives |
 | Accounting | Books, currencies, fiscal periods, accounts, journal posting, reversals, reports | Identity and SQLite |
 | Trading | Contacts, invoices, payments, settlements, credit notes | Identity and accounting |
 | Reports | Ledger-derived business summaries and current invoice aging | Identity, accounting and trading |

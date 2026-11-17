@@ -8,7 +8,7 @@
 accounting-<timestamp>-<id>.bundle/
 ├── database.sqlite
 ├── manifest.json
-└── blobs/<organization-id>/<company-id>/<attachment-id>.blob
+└── blobs/<company-id>/<attachment-id>.blob
 ```
 
 The timestamped `.partial` directory created during snapshotting is an **atomic write staging location**, not a second supported format. Failed backups remove it; only verified bundles are renamed into their final paths.

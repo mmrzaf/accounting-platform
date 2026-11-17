@@ -5,7 +5,7 @@
 
 ## Decision
 
-One SQLite file with explicit organization and company scoping; enforce FKs, unique constraints, short transactions and single-writer reality. Use consistent backup/snapshot and verified restore. Initial driver candidate is `better-sqlite3`, contingent on live compatibility tests.
+One SQLite file with explicit company scoping; enforce FKs, unique constraints, short transactions and single-writer reality. Use consistent backup/snapshot and verified restore. Initial driver candidate is `better-sqlite3`, contingent on live compatibility tests.
 
 ## Consequences
 

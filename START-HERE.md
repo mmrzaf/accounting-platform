@@ -1,96 +1,56 @@
-# Start here — developer and coding-agent handoff
+# Start here — developer and AI coding-agent handoff
 
-**Read this before making changes.** This is financial software; the current repository is a **development candidate, not a certified accounting product**. Do not enter live business records until all release gates pass and an accounting professional signs off the workflows.
+This is financial software. **Do not run the current version on live financial records.** Complete both milestone checks, remaining workflow design, browser tests, and production acceptance first.
 
-## What is here
+## 1. Understand the only company boundary
 
-- `src/modules/`: audited TypeScript application/domain services (identity, accounting, trading, AI, reports, inventory, tax, documents).
-- `src/platform/`: SQLite persistence, forward-only migrations, backup, HTTP adapters and Node server.
-- `web/`: React + TanStack Router SPA, built with Vite; its package installation/build has **not yet been certified**.
-- `scripts/`: TypeScript CLI, quality checks and dependency-free handoff diagnostics.
-- `migrations/`: append-only checksummed SQL; never change applied migration files.
-- `docs/`: the current invariants, architecture and remaining release gates.
+**There is only Company.** A user has exactly one immutable `company_id` and one or more company roles. Login accepts **username and password**; usernames are unique throughout the installation. Company is never selected in the UI and never taken from an untrusted request as authority. Companies are created **only** by a trusted local CLI operator. The current data model is described in [ADR-0009](docs/decisions/0009-single-company-boundary.md).
 
-**Source of truth:** [AGENTS.md](AGENTS.md) for coding rules, [current status](docs/validation/implementation-status.md) for gaps, [release gates](docs/validation/release-gates.md) for acceptance. Historical Git commits are not proof of release readiness.
+Review these, in order: [AGENTS.md](AGENTS.md), [architecture](docs/architecture/modules.md), [company model](docs/domain/company-and-identity.md), [accounting](docs/accounting/accounting-core.md), and [release status](docs/validation/implementation-status.md).
 
-## A. First inspection (does not modify anything)
-
-Use Node **24** (primary). Node 22.16+ and 26 are compatibility targets. From the repository root:
+## 2. Inspect first, without installing dependencies
 
 ```sh
+node --version
+pnpm --version
 node --experimental-strip-types scripts/handoff-check.ts
-node --experimental-strip-types scripts/handoff-check.ts --json
 ```
 
-The diagnostic is dependency-free; it reports missing dependencies, missing browser lockfile, and unbuilt UI without printing secrets. `--release --strict` exits nonzero if the release preflight is not ready.
+Use Node **24** as the main development version. Node 22.16+ and 26 are compatibility targets; pnpm **10.20.0** is the pinned package manager. **Corepack is optional and not required.**
 
-## B. Install and freeze dependencies (requires npm registry access)
-
-1. Enable the pinned pnpm through Corepack: `corepack enable`. **Node 26 does not bundle Corepack:** install it first with `npm install -g corepack@0.36.0` (Node 22/24 normally include it).
-2. Install backend dependencies: `corepack pnpm install --frozen-lockfile`.
-3. **One-time release blocker:** `web/pnpm-lock.yaml` does not yet exist. On a connected machine run `corepack pnpm --dir web install --no-frozen-lockfile`; inspect the resulting dependency tree, advisories, and versions; **commit** `web/pnpm-lock.yaml` as an isolated `chore(deps): ...` commit. Do not fabricate a lockfile or turn off frozen installs in CI.
-4. Thereafter install the browser with `corepack pnpm --dir web install --frozen-lockfile`.
-5. The backend currently locks `@types/node@25` while Node 24 is the primary target. Align types and regenerate the *root* lockfile in a separate reviewed dependency commit on a connected machine.
-
-If registry access fails, stop and report the blocker. Do **not** replace React/Vite with a disposable UI or weaken the test gates to claim a successful build.
-
-## C. Verify before developing
+## 3. Install, validate, build
 
 ```sh
-corepack pnpm verify             # backend: strict TS, boundaries, docs, build, behavior
-corepack pnpm web:check          # frontend TypeScript (requires browser dependencies)
-corepack pnpm web:build          # real Vite production bundle
-node --experimental-strip-types scripts/handoff-check.ts --release --strict
+pnpm install --frozen-lockfile
+pnpm --dir web install --no-frozen-lockfile
+pnpm run verify
+pnpm run web:check
+pnpm run web:build
 ```
 
-The GitHub Actions workflow enforces a frontend build once the browser lockfile exists. Do not claim Windows/macOS/Node24/26 results until the corresponding jobs actually pass. A green backend job alone is **not** a green release.
+The browser lockfile is not shipped until resolved and reviewed on a machine with registry access. Commit `web/pnpm-lock.yaml` as a focused dependency commit, then use `pnpm --dir web install --frozen-lockfile` for every later install. **Never fake dependency integrity fields.** Some existing quality gates depend on the installed packages; do not suppress them.
 
-## D. Initialize a disposable local installation
-
-Run these commands **only after reviewing the configured database path**. The defaults use ignored `var/` directories. The administrator password is prompted privately (not a command-line argument):
+## 4. Bootstrap a fresh, disposable installation
 
 ```sh
-corepack pnpm setup
-corepack pnpm db:migrate
-corepack pnpm app:bootstrap -- --slug demo --name "Demo Organization" --admin-username owner --admin-name "Owner"
-corepack pnpm db:check
-corepack pnpm app:doctor -- --json
-corepack pnpm app:serve
+cp .env.example .env             # review local storage paths before use
+pnpm run setup                    # 'pnpm setup' is pnpm's built-in command, NOT this script
+pnpm run db:migrate
+pnpm run app:bootstrap -- --name "Example Company" --admin-username owner --admin-name "Owner"
+pnpm run app:doctor
+pnpm run app:serve
 ```
 
-Open `http://127.0.0.1:3000` after the browser build exists. Sign in with organization `demo` and user `owner`. In the company Settings, create the accounting book, fiscal period and a *test* chart of accounts, then create a contact, a small invoice, post it and inspect the ledger. No statutory Iranian chart of accounts or verified compliance template is shipped.
+The CLI prompts for the password securely; it does not accept passwords as shell arguments. Visit **http://127.0.0.1:3000** and enter username `owner` and the password. **There is no company slug, switcher, or selection screen.** In Settings, create the accounting book, fiscal period, postable accounts, and **posting defaults** (receivables, payables, revenue, expense and bank/cash) once before recording invoices or payments. See [core workflow acceptance](docs/ux/workflow-acceptance.md).
 
-For frontend development, keep the API server running in one terminal and launch `corepack pnpm web:dev` in another. Vite serves `http://127.0.0.1:5173` with a local API proxy. **Never deploy the Vite dev server or bind it to the LAN.**
+For frontend development, run `pnpm run web:dev` separately with the backend running. This uses a local Vite proxy; do not publish the dev server.
 
-If a browser shows only `NOT_FOUND`, the production bundle is probably missing. Build `web/` first; the backend intentionally stays usable as an API.
+## 5. Agent engineering requirements
 
-## E. Financial and security acceptance
+Use the established module boundaries. All new source is strict `.ts` / `.tsx`. Design a complete vertical workflow, including authorization, database constraints, UI states and accessibility, and accounting regression tests. There is no old-database migration pathway: this is a fresh product with one initial migration.
 
-Before real use, verify in an isolated copy of the database: authorized company-scoped access, incorrect-company denial, invoice posting, partial payment allocation, correction/reversal, period controls, bank/cash classification, negative cases, AI approval policy, backup/restore, RTL/LTR interaction, and browser E2E with Chromium/Firefox/WebKit. Confirm posted journals balance and all account balances reconcile. The [release runbook](docs/operations/release-runbook.md) describes operational controls; it is not a certification.
+Run `pnpm run verify`, `pnpm run web:check`, `pnpm run web:build` and appropriate browser E2E where available. Record **actual** checks and any skipped validations. Keep documentation accurate; use focused conventional commits with author `mmrzaf <mohammr.farkhonde12@sharif.edu>`.
 
-For a complete backup (database plus attachments):
+## 6. Current unfinished release gates
 
-```sh
-corepack pnpm app:backup -- --json
-corepack pnpm app:backup-verify -- --source ./var/backups/NAME.bundle
-```
-
-See [recovery procedure](docs/operations/complete-backups.md) before using restore. Restore only into new paths, never into a live database or attachment directory.
-
-## F. Agent change protocol
-
-1. Identify the owning module and read its invariants/contracts. List the specific files and edge cases you intend to modify.
-2. Keep changes in strict `.ts`/`.tsx`, with explicit service boundaries and permission enforcement. Do not add `.mjs`, compatibility wrappers, mock financial truth, or bypasses for offline package installation.
-3. Add positive, negative, concurrency/idempotency and cross-company tests where applicable. Do not change an applied migration; add a numbered migration.
-4. Run applicable checks, report the exact results **and any skipped gates**. Never call a syntax parse a React build.
-5. Use focused Conventional Commits under `mmrzaf <mohammr.farkhonde12@sharif.edu>` only when instructed for this repository. Do not claim verification that you did not execute.
-6. Keep `docs/validation/implementation-status.md` and release checklist current. Do not delete working services simply because the UI has not exposed them yet.
-
-### Specific unresolved blockers (handle first)
-
-- Generate, review and commit the browser lockfile; align Node type definitions and execute real Vite build and browser E2E.
-- Verify the production reverse proxy + TLS/session/CSRF behavior and OS/Node compatibility matrix.
-- Complete financially valued inventory, full returns/refunds, tax posting, FX settlement/revaluation, bank reconciliation, fiscal closing and regulatory verification before claiming those features.
-- Review the SQL result projection casts and integrate Drizzle **only** if the accounting guarantees survive exact-money and trigger tests.
-
-**Do not publish a production-ready claim until all blockers are resolved and documented.**
+Browser build and real interaction testing after the shell redesign, fiscal close, FX settlements, valued stock, full refunds, tax journal posting, live-provider AI and multi-step agent execution, Drizzle decision, and regulatory sign-off. See [open work](docs/roadmap/open-work.md). Do not declare production-ready because an API responds successfully.

@@ -4,15 +4,15 @@
 
 ## Construction and secret ownership
 
-`createAiService(db, { masterKey, fetcher?, clock?, timeoutMs? })` requires a **random 32-byte encryption key** supplied by trusted operator configuration, separately from the SQLite database and backups. Use a persisted secure secret source in a real deployment; do not generate a new key on every restart. Losing the key makes encrypted provider credentials unusable. Do not log, send through CLI arguments, persist in a database, or commit the master key. Credential encryption uses AES-256-GCM with the organization ID as associated data; rotation of the master key is a future operational requirement.
+`createAiService(db, { masterKey, fetcher?, clock?, timeoutMs? })` requires a **random 32-byte encryption key** supplied by trusted operator configuration, separately from the SQLite database and backups. Use a persisted secure secret source in a real deployment; do not generate a new key on every restart. Losing the key makes encrypted provider credentials unusable. Do not log, send through CLI arguments, persist in a database, or commit the master key. Credential encryption uses AES-256-GCM with the company ID as associated data; rotation of the master key is a future operational requirement.
 
-The authorized **organization administrator** configures `baseUrl`, `model`, `apiKey`, `supportsTools`, and `enabled` with `configureProvider`. `getProvider` deliberately never returns plaintext credentials. Provider configuration is disabled until deliberately enabled. Only HTTPS URLs are permitted, except loopback HTTP for local model servers. Cross-host SSRF and deployment egress controls require host-level network policy in production.
+The authorized **company administrator** configures `baseUrl`, `model`, `apiKey`, `supportsTools`, and `enabled` with `configureProvider`. `getProvider` deliberately never returns plaintext credentials. Provider configuration is disabled until deliberately enabled. Only HTTPS URLs are permitted, except loopback HTTP for local model servers. Cross-host SSRF and deployment egress controls require host-level network policy in production.
 
 ## Use cases
 
 | Service method | Scope | Description |
 |---|---|---|
-| `configureProvider` / `getProvider` | `ai.configure` (organization) | Configure/redact AI connection |
+| `configureProvider` / `getProvider` | `ai.configure` (company) | Configure/redact AI connection |
 | `setPolicy` | `ai.policy` (company) | Configure `autoDrafts` and `autoPost` |
 | `getPolicy` | `ai.use` | Inspect company autonomy policy |
 | `runTurn` | `ai.use` | Answer, run scoped read tools, or propose/execute **one mutation** |

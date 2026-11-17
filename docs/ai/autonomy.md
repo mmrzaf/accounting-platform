@@ -8,9 +8,9 @@
 
 - AI is optional and provider-agnostic through configurable OpenAI-compatible APIs. No provider network dependency for core operations.
 - Model output is untrusted interpretation, never the ledger itself. It may propose typed application commands only; services validate and commit.
-- Model tools are individually authorized, scoped by organization/company, bounded in query size, and rate-limited.
+- Model tools are individually authorized, scoped by company, bounded in query size, and rate-limited.
 - No unrestricted SQL access, privileged service credentials, arbitrary filesystem actions, or bypass of document/period policy.
-- Models receive minimum necessary information. Tenant administrator explicitly configures outbound model connection and accepts sensitivity risks.
+- Models receive minimum necessary information. Company administrator explicitly configures outbound model connection and accepts sensitivity risks.
 
 ## Risk tiers (proposed)
 

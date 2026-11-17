@@ -8,7 +8,7 @@ An accounting-led, AI-native business management product for small Iranian tradi
 
 ## First useful release
 
-- Configuration: organizations, companies (provisional multiplicity), users, roles, company access, fiscal year, base currency, account template.
+- Configuration: companies, users, company roles, fiscal year, base currency, account template.
 - Accounting: chart of accounts, double-entry journals, posting/reversal, manual entries, balanced ledger, period controls, audit history.
 - Daily work: contacts/parties, goods/services, sales and purchases, credit and cash invoices, partial payments, advances and refunds.
 - Optional simple inventory: single location, quantity and financial valuation, initially moving weighted-average cost (pending confirmation).
@@ -22,7 +22,7 @@ Manufacturing, advanced warehouses, payroll, intercompany consolidation, bank mo
 
 ## Workload and environment
 
-Small installation: one local server, usually 1–2 organizations and <5 total users; local disk SQLite; LAN browsers; no internet needed except optionally external AI. No artificially low software limits on company count or user count. Company separation must be correct from day one if multiplicity is approved.
+Small installation: one local server, usually 1–2 independent companies and <5 total users; local disk SQLite; LAN browsers; no internet needed except optionally external AI. No artificially low software limits on company count or user count. Company separation is strict from day one.
 
 ## First three acceptance journeys
 
@@ -36,7 +36,7 @@ Small installation: one local server, usually 1–2 organizations and <5 total u
 - Every posted journal reconciles and can be traced to its source.
 - Authorized users can use the full core product when the AI provider is unavailable.
 - A first-time user can identify drafts, posted records, balances, and corrections without specialized training.
-- No cross-organization read/write in the security suite, including AI and reporting paths.
+- No cross-company read/write in the security suite, including AI and reporting paths.
 - Backups can be restored into a fresh installation with attachment consistency and auditable results.
 
 ## Regulatory limitation

@@ -4,9 +4,9 @@
 
 ## Scope and ownership
 
-`src/modules/trading/` owns contacts, purchase/sale invoices, receipts/disbursements and payment allocations. All mutations use the current session and explicit legal company, within short `BEGIN IMMEDIATE` SQLite transactions. Public service entry point: `createTradingService(db)`. External callers never choose the organization ID. All posting and reversal flows use the accounting engine; trading does **not** mutate the ledger tables itself.
+`src/modules/trading/` owns contacts, purchase/sale invoices, receipts/disbursements and payment allocations. All mutations use the current session and authenticated company, within short `BEGIN IMMEDIATE` SQLite transactions. Public service entry point: `createTradingService(db)`. External callers never choose the company ID. All posting and reversal flows use the accounting engine; trading does **not** mutate the ledger tables itself.
 
-- Contacts are shared across one organization. A user's company-scoped `contacts.read` / `contacts.manage` role permits looking up that directory from an authorized company; the contact does not own a balance.
+- Contacts are shared across one company. A user's company-scoped `contacts.read` / `contacts.manage` role permits looking up that directory from an authorized company; the contact does not own a balance.
 - Invoices, receipts, payments and allocations belong to **one company**. Internal document numbers are company- and kind-scoped, e.g., `S-000001`, `P-000001`, `R-000001`, `D-000001`, allocated only on successful posting. They are not legal/tax invoice serials.
 - Invoice kinds: `sale` and `purchase`. Line kinds: `service`, `non_stock`, `good`; all are financially treated as **non-stock** in this release. No quantity-on-hand, COGS, or valuation movements occur.
 - Trading document financial amounts are **base-currency minor units only**. Other currency codes and FX rate snapshots remain supported by the underlying ledger, but document-level FX settlement/revaluation is not implemented. A trading document cannot silently assume a Toman/IRR conversion.

@@ -1,32 +1,21 @@
-# Authorization, tenancy and data security
+# Authorization and company data security
 
-## Identity and permissions
+**One user → one Company.** There is no Organization entity and no company switching. Login uses globally unique username and password. Company association is resolved exclusively from the authenticated session. Never trust company identifiers on HTTP requests or AI tool inputs as an authority.
 
-One user belongs to exactly one organization. Permissions are assigned to **roles**, roles are assigned to users, and users may have multiple roles. No direct user-specific grant exceptions. Permission names take `resource.action` form, for example `invoice.read`, `invoice.post`, `payment.create`, `journal.reverse`, `period.close`, `users.manage`, `ai.configure`. Distinguish `read` vs `export`, `create` vs `post`, `reverse` vs `delete` and `configure` vs use.
+Permissions are named actions (`accounting.post`, `accounting.reverse`, `users.manage`, `ai.execute`), assigned to **roles**; roles assigned to company users; users may have several roles. No direct user-specific permissions. All authorization is enforced in application services and supported by company-scoped database foreign keys. System roles are company-admin, company-accountant, company-reader and company-operator; custom roles remain possible.
 
-Current role assignment behavior: grants either organization-wide (administrative functions) or company-specific (accounting and operational functions). A role definition is a permission template; a user's assignment to a company grants it there only. Organization administrators manage users/companies/roles but receive explicit company-admin membership to access company data. User-facing company multiplicity still requires signoff.
+## Access sequence
 
-## Server authorization sequence
+1. Validate session token, expiration, current password version, and active user/company.
+2. Derive `actor.companyId` from the session—not a request body or URL.
+3. Check the named permission through live company-owned role assignments.
+4. Check the requested business record belongs to that same company; no cross-company references.
+5. Validate domain invariants and execute atomically with audit.
 
-1. Validate session and user active status.
-2. Derive organization from authenticated identity, never from request body.
-3. Resolve requested company and verify that it belongs to organization.
-4. Check effective role grants for the action and company.
-5. Enforce entity-specific business rules (open period, document ownership, status, threshold policy) in application services.
-6. Execute tenant-scoped query and commit/audit. Never rely on UI-hidden actions as enforcement.
+`companies`, `users`, `roles`, finance and business records have immutable ownership or scoped constraints. Tests cover direct SQL attempts, cross-company lookups, authorization changes, concurrency, and AI actions. SQLite `PRAGMA foreign_keys=ON` is mandatory. Audit rows are append-only for ordinary application writes but **not cryptographically tamper-evident** against database operators.
 
-## Persistence defense in depth
+## Sessions, HTTP and operational boundaries
 
-- Every company-owned row references a company within its organization via validated composite relationships where possible.
-- `organization_id` is required on organization-owned records; companies and company-owned facts use composite `(organization_id, company_id)` constraints where helpful.
-- Composite foreign keys and scoped unique indexes prevent cross-organization references even when application code makes an error. Enable SQLite `PRAGMA foreign_keys = ON` on each connection.
-- Queries and joins must use organization/company scope; role checks are not a substitute for scoped SQL.
-- Cross-organization and cross-company negative tests cover UI/server functions, reports, downloads, CLI and AI.
+Passwords use salted scrypt; opaque random session tokens are stored by hash. The HTTP adapter sets HttpOnly/SameSite cookies, enforces CSRF on mutations, and uses `Secure` on HTTPS. Loopback HTTP is only for local development; LAN service requires a properly configured HTTPS proxy and real deployment review. Lockout throttling and password resets are available. Administrator recovery is a trusted local CLI operation only.
 
-## Web and operational security
-
-The identity layer provides scrypt hashing, opaque random bearer sessions stored by hash, secure/httpOnly/sameSite cookies in the Web adapter, CSRF enforcement, persistent account lockout, session invalidation and no-store identity responses. The HTTP host is mounted and loopback-only; LAN TLS requires a separately configured reverse proxy and operational acceptance testing. Additional rate-limiting and attachment-route design remain release work. Network-level access is not a substitute for authentication.
-
-## Audit
-
-Record actor, organization/company, action, source, outcome, time, affected IDs and request correlation. Capture role changes and AI execution provenance. Never log plaintext credentials, raw AI provider keys or unnecessary sensitive payloads. SQLite triggers reject UPDATE and DELETE on security audit rows for ordinary application writes. This is **not cryptographic tamper evidence** against database operators. Business source-document and AI tool proposal/execution/rejection events are audited in the existing append-only security audit; comprehensive production audit retention and cryptographic integrity remain future work.
+Read [identity API](../api/identity.md), [company data model](../domain/company-and-identity.md), and [release gates](../validation/release-gates.md).

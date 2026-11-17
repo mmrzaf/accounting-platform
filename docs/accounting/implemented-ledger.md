@@ -2,7 +2,7 @@
 
 **Implementation:** `src/modules/accounting/` and checksummed migration `migrations/0003_accounting_ledger.sql`.
 
-This is a **framework-independent, SQLite-backed general ledger**, integrated with the current invoice/payment application services, but not an end-user accounting interface. The company/organization model remains a provisional product decision; this implementation makes the company the financial isolation boundary.
+This is a **framework-independent, SQLite-backed general ledger**, integrated with the current invoice/payment application services, but not an end-user accounting interface. Company is the sole financial isolation boundary.
 
 ## Ownership and entry points
 

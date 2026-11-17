@@ -23,7 +23,7 @@ These are required **before a production release** and are not certified by the 
 
 - Prove chosen driver returns exact signed 64-bit values as BigInt; verify unsafe JS numbers are rejected at the application boundary. The current posting guard depends on a per-connection custom `bigint_total` SQL aggregate; verify equivalent exact database-side enforcement with the chosen production driver.
 - Generate/apply migrations twice to a clean database; check FK PRAGMA every connection and partial failure rollback/migration recovery.
-- Use composite `(organization_id, company_id)` references, per-company unique constraints and explicit query scoping. Prove cross-org and cross-company negative tests.
+- Use company-scoped references, per-company unique constraints and explicit query scoping. Prove cross-company negative tests.
 - Exercise conflicting idempotency keys, simultaneous postings, timed-out request outcome recovery, WAL checkpoint and file locking.
 - Perform a hot online backup plus attachment snapshot, restore into clean workspace and reconcile balances.
 

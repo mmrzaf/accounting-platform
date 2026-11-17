@@ -7,7 +7,7 @@
 - `migrations/`: immutable SQL history. Applied migration checksums must never change.
 - `tests/`: executable infrastructure, accounting, identity, trading, AI and HTTP regression tests.
 
-Use strict TypeScript, explicit input validation, exact integer monetary representations, organization/company scoping, short transactions, and one source of financial truth. No generated `dist/`, database files, backups, credentials, or dependencies in Git.
+Use strict TypeScript, explicit input validation, exact integer monetary representations, company scoping, short transactions, and one source of financial truth. No generated `dist/`, database files, backups, credentials, or dependencies in Git.
 
 The public HTTP listener is loopback-only, with separate HTTPS termination required for LAN clients. Operators create and verify a **complete** database-and-attachments backup; standalone SQLite copies are not a supported recovery operation.
 

@@ -9,7 +9,7 @@ All commands are invoked through `corepack pnpm <script>` or `node --experimenta
 | Apply migrations | `db:migrate` | Forward-only, checksummed migrations |
 | Inspect migrations | `db:status` | Applied/pending migration status |
 | Check integrity | `db:check` | SQLite integrity and foreign-key verification |
-| Bootstrap | `app:bootstrap` | First organization, company and administrator; secure password prompt |
+| Bootstrap | `app:bootstrap` | First company and administrator; secure password prompt |
 | Local recovery | `app:recover-admin` | Privileged administrator password reset, not an HTTP action |
 | Start API | `app:serve` | Loopback-only HTTP service |
 | Create complete backup | `app:backup` | Snapshot database with all referenced attachment files |

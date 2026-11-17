@@ -22,7 +22,7 @@ The trial balance is derived from **posted journal lines only**. General ledger,
 
 ## Posting algorithm (logical, not code)
 
-1. Authenticate actor; resolve organization and company scope from session/permissions.
+1. Authenticate actor; resolve company scope from session/permissions.
 2. Validate source lifecycle, dates, fiscal period, entities, account mappings, currency and permitted action.
 3. Start DB transaction; obtain safe write serialization; check idempotency and unique source event.
 4. Construct accounting effect deterministically; compute all amounts in exact arithmetic; validate balance and allowed accounts.

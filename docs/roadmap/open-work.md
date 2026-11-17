@@ -1,12 +1,11 @@
-# Remaining engineering work — acceptance order
+# Open work — ordered release backlog
 
-This is the current development backlog, not a claim of completed milestones. Architecture decisions are tracked in [decision register](../decisions/decision-register.md); missing capabilities are tracked in [implementation status](../validation/implementation-status.md).
+1. **Browser integration gate:** Resolve and commit `web/pnpm-lock.yaml` on a connected machine. Run `pnpm run web:check`, `pnpm run web:build`, and actual desktop/mobile browser E2E. Fix all TypeScript and interaction defects before shipping.
+2. **Workflow acceptance:** Test full first-use journey: CLI company bootstrap, book/period/chart setup, posting defaults, contact, multi-line invoice, immediate payment and partial settlement, reversal, ledger and report reconciliation. Verify both Persian RTL and English LTR with keyboard navigation.
+3. **Product-quality UX:** Add printed/shareable invoices, contextual document navigation, richer reports and safe correction screens. Remove technical account selectors from ordinary workflows; keep advanced accountant controls accessible.
+4. **Financial gaps:** Complete returns/refunds, bank reconciliation, full FX settlements/revaluation, fiscal closing, tax journal posting and inventory valuation/COGS—or explicitly disable unfinished operations for the first release.
+5. **AI:** Persistent conversations and current-record context, reliable multi-step command planning/execution, approvals, failure compensation and live-provider certification.
+6. **Operational certification:** Validate Node 24 first, then 22.16+ and 26 on Linux/Windows/macOS; run disaster recovery drills and audit sessions, permissions, CSRF, TLS and all business invariants.
+7. **Persistence debt:** Decide whether to adopt Drizzle for schema-safe projections; replace unchecked SQL projection casts without compromising SQLite triggers and exact money arithmetic.
 
-1. **Revalidate engineering baseline.** On a connected machine, run frozen installation, strict TypeScript, module-boundary, migration, accounting, HTTP and backup tests; verify Node 24 first, then Node 22.16+/26 and Windows/macOS. Align Node type definitions with the primary runtime and confirm actual API availability.
-2. **Resolve persistence contract.** Integrate Drizzle or approved alternative with schema-checked SQL projections. Preserve custom `bigint_total`, triggers, cross-company foreign keys, transactions and idempotency. Eliminate the unchecked `rowsAs` assertions once verified replacements exist.
-3. **Validate and complete the actual browser application.** The React/TanStack Router client has initial login, company switching, accounting setup, contacts, invoice/payment/settlement and ledger screens. Generate a frozen `web/` lockfile, typecheck and build with Vite, complete E2E, role/a11y tests, real Jalali inputs, error/correction handling and remaining incomplete administration, error handling and user flows.
-4. **Close functional business gaps.** Financially valued inventory and COGS, refunds/returns, effective tax posting, full FX settlement and revaluation, bank reconciliation and closing procedures. These require domain designs and accounting invariant tests before UI exposure.
-5. **Complete workflow coverage.** Inventory, tax, import, attachment and credit operations now have HTTP endpoints. Add the remaining safe edit/void/reversal, export, reconciliation and attachment navigation workflows through the same services.
-6. **Certify AI and production operations.** Live provider tests, bounded compound operations and approvals, reverse-proxy security, secrets/recovery, scheduled backups, restore exercises and release sign-off.
-
-No change is considered production-ready until its corresponding acceptance tests, platform checks and financial-domain review have been completed. The current handoff pass passed 97 backend tests on Linux/Node 22.16; browser and cross-platform gates remain open. Start with `START-HERE.md`.
+There are **no legacy migration or compatibility deliverables**. The current product has one initial schema and no production data. Do not claim financial production readiness until explicit acceptance gates pass.
