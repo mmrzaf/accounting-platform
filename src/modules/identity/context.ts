@@ -17,14 +17,21 @@ interface RoleRow { id: string; scope: RoleScope; code: string; name: string }
 const sha256 = (value: string): string => createHash('sha256').update(value).digest('hex')
 export { sha256 }
 
+/** Allow application-level atomic AI execution to compose existing transactional services.
+ * Nested operations use unique SQLite savepoints; an outer rollback reverts all effects.
+ */
 export function transaction<T>(db: DatabaseSync, fn: () => T): T {
-  db.exec('BEGIN IMMEDIATE')
+  const savepoint = db.isTransaction ? `sp_${randomUUID().replaceAll('-', '')}` : null
+  db.exec(savepoint ? `SAVEPOINT ${savepoint}` : 'BEGIN IMMEDIATE')
   try {
     const result = fn()
-    db.exec('COMMIT')
+    db.exec(savepoint ? `RELEASE SAVEPOINT ${savepoint}` : 'COMMIT')
     return result
   } catch (error) {
-    db.exec('ROLLBACK')
+    if (savepoint) {
+      db.exec(`ROLLBACK TO SAVEPOINT ${savepoint}`)
+      db.exec(`RELEASE SAVEPOINT ${savepoint}`)
+    } else db.exec('ROLLBACK')
     throw error
   }
 }
