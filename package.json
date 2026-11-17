@@ -25,6 +25,7 @@
     "app:recover-admin": "node --experimental-strip-types scripts/app.ts admin:recover",
     "check:boundaries": "node --experimental-strip-types scripts/check-boundaries.ts",
     "app:serve": "node --experimental-strip-types scripts/app.ts server:start",
+    "app:ai-initialize": "node --experimental-strip-types scripts/app.ts ai:key:initialize",
     "app:backup": "node --experimental-strip-types scripts/app.ts backup:create",
     "app:backup-verify": "node --experimental-strip-types scripts/app.ts backup:verify",
     "app:restore": "node --experimental-strip-types scripts/app.ts backup:restore",

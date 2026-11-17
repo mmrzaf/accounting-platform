@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-import { mkdir, access } from 'node:fs/promises'
+import { mkdir, access, appendFile, chmod, readFile, writeFile } from 'node:fs/promises'
+import { randomBytes } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { createInterface } from 'node:readline'
 import { Writable } from 'node:stream'
@@ -17,7 +18,7 @@ import { listen } from '../src/platform/server/node-http.ts'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const migrations = join(root, 'migrations')
-const commands = new Set(['setup', 'doctor', 'db:migrate', 'db:status', 'db:check', 'backup:create', 'backup:verify', 'backup:restore', 'server:start', 'company:bootstrap', 'admin:recover'])
+const commands = new Set(['setup', 'doctor', 'db:migrate', 'db:status', 'db:check', 'backup:create', 'backup:verify', 'backup:restore', 'server:start', 'company:bootstrap', 'admin:recover', 'ai:key:initialize'])
 
 function parseArgs(args: string[]) {
   const flags: Record<string, string | boolean | undefined> = {}
@@ -37,7 +38,7 @@ function parseArgs(args: string[]) {
     } else if (!command) command = arg
     else throw new Error(`Unexpected argument: ${arg}`)
   }
-  if (!command || !commands.has(command)) throw new Error('Expected command: setup | doctor | db:migrate | db:status | db:check | backup:create | backup:verify | backup:restore | server:start | company:bootstrap | admin:recover')
+  if (!command || !commands.has(command)) throw new Error('Expected command: setup | doctor | db:migrate | db:status | db:check | backup:create | backup:verify | backup:restore | server:start | company:bootstrap | admin:recover | ai:key:initialize')
   return { command, flags }
 }
 
@@ -70,6 +71,22 @@ async function main(argv: string[]) {
   loadLocalEnv(resolve(process.cwd(), '.env'))
   const config = parseConfig()
   const dbPath = resolve(value('database') ?? config.dbPath)
+  if (command === 'ai:key:initialize') {
+    const envPath = resolve(process.cwd(), '.env')
+    if (process.env['APP_AI_MASTER_KEY_BASE64']) throw new Error('AI master key already exists in the environment; refusing to replace it')
+    let existing = ''
+    const fileAlreadyExists = existsSync(envPath)
+    try { existing = await readFile(envPath, 'utf8') } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+    }
+    if (/^\s*APP_AI_MASTER_KEY_BASE64\s*=/mu.test(existing)) throw new Error('AI master key entry already exists in .env; refusing to overwrite it')
+    const entry = `${existing && !existing.endsWith('\n') ? '\n' : ''}APP_AI_MASTER_KEY_BASE64=${randomBytes(32).toString('base64')}\n`
+    if (fileAlreadyExists) await appendFile(envPath, entry, { mode: 0o600 })
+    else await writeFile(envPath, entry, { mode: 0o600, flag: 'wx' })
+    await chmod(envPath, 0o600)
+    emit({ ok: true, aiEncryptionKeyCreated: true, path: '.env', next: 'Restart app:serve and configure provider/model in Settings > AI. Back up .env securely.' }, flags['json'])
+    return
+  }
   if (command === 'setup') {
     await mkdir(dirname(dbPath), { recursive: true, mode: 0o700 })
     await mkdir(config.backupDir, { recursive: true, mode: 0o700 })
