@@ -1,6 +1,6 @@
-# Next environment validation plan (Phase 1 carryover into Phase 2 entry)
+# Release validation gates
 
-These are not completed tests. They should run **before production application release and framework integration** on a connected machine with Node 24 LTS, pnpm and OS CI access. The standalone accounting core is implemented offline but does not satisfy these gates.
+These are required **before a production release** and are not certified by the current static review. Run them on connected CI/workstations with Node 24, supported compatibility runtimes, and all operating systems. See [current implementation status](implementation-status.md).
 
 ## Reproducibility
 
