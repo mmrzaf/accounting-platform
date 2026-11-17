@@ -23,17 +23,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
-      - name: Install Corepack on Node 26 (no longer bundled)
-        if: matrix.node == '26'
-        run: npm install -g corepack@0.36.0
-      - name: Enable pinned pnpm
-        run: corepack enable
+      - name: Install pinned pnpm
+        run: npm install --global pnpm@10.20.0
       - name: Install locked dependencies
-        run: corepack pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
       - name: Validate backend and infrastructure
-        run: corepack pnpm verify
+        run: pnpm verify
       - name: Diagnose runtime
-        run: corepack pnpm app:doctor -- --json
+        run: pnpm app:doctor -- --json
 
   browser:
     name: Browser / Node 24 / production build
@@ -43,8 +40,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Enable pinned pnpm
-        run: corepack enable
+      - name: Install pinned pnpm
+        run: npm install --global pnpm@10.20.0
       - name: Require committed browser dependency lock
         shell: bash
         run: |
@@ -53,12 +50,25 @@ jobs:
             exit 1
           fi
       - name: Install browser dependencies reproducibly
-        run: corepack pnpm --dir web install --frozen-lockfile
+        run: pnpm --dir web install --frozen-lockfile
       - name: Typecheck browser
-        run: corepack pnpm --dir web check
+        run: pnpm --dir web check
       - name: Build browser production bundle
-        run: corepack pnpm --dir web build
+        run: pnpm --dir web build
       - name: Check compiled index exists
         shell: bash
         run: test -f web/dist/index.html
-# A browser E2E and accessibility job is still a release blocker, not an omitted success.
+      - name: Install Playwright Chromium and operating-system dependencies
+        run: pnpm --dir web exec playwright install --with-deps chromium
+      - name: Exercise real browser workflows
+        run: pnpm run web:e2e
+      - name: Upload browser failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-acceptance-results
+          path: |
+            web/test-results/
+            web/playwright-report/
+          if-no-files-found: ignore
+# Financial/regulatory acceptance and full accessibility remain manual release gates.

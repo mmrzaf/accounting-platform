@@ -13,9 +13,9 @@
     "check:types": "tsc -p tsconfig.json",
     "check:docs": "node --experimental-strip-types scripts/check-docs.ts",
     "check:sources": "node --experimental-strip-types scripts/check-sources.ts",
-    "check": "npm run check:types && npm run check:docs && npm run check:sources && npm run check:boundaries",
+    "check": "pnpm run check:types && pnpm run check:docs && pnpm run check:sources && pnpm run check:boundaries",
     "test": "node --experimental-strip-types --test tests/infrastructure/*.test.ts tests/identity/*.test.ts tests/accounting/*.test.ts tests/trading/*.test.ts tests/ai/*.test.ts tests/server/*.test.ts tests/web/*.test.ts",
-    "verify": "npm run check && npm run build && npm run test",
+    "verify": "pnpm run check && pnpm run build && pnpm run test",
     "setup": "node --experimental-strip-types scripts/app.ts setup",
     "app:doctor": "node --experimental-strip-types scripts/app.ts doctor",
     "db:migrate": "node --experimental-strip-types scripts/app.ts db:migrate",
@@ -31,9 +31,10 @@
     "web:dev": "pnpm --dir web dev",
     "web:build": "pnpm --dir web build",
     "web:check": "pnpm --dir web check",
-    "verify:all": "npm run verify && npm run web:check && npm run web:build",
+    "verify:all": "pnpm run verify && pnpm run web:check && pnpm run web:build && pnpm run web:e2e",
     "handoff:check": "node --experimental-strip-types scripts/handoff-check.ts",
-    "handoff:release": "node --experimental-strip-types scripts/handoff-check.ts --release --strict"
+    "handoff:release": "node --experimental-strip-types scripts/handoff-check.ts --release --strict",
+    "web:e2e": "pnpm --dir web e2e"
   },
   "devDependencies": {
     "@types/node": "25.1.0",
