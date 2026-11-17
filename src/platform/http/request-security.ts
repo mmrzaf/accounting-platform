@@ -28,7 +28,7 @@ export function cookieHeader(token: string, isSecure: boolean) {
 export function clearCookie(isSecure: boolean) {
   return `${isSecure ? SESSION_COOKIE : LOCAL_COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${isSecure ? '; Secure' : ''}`
 }
-export async function parseJson(request: Request): Promise<Record<string, unknown>> {
+export async function parseJson(request: Request, maxBytes = MAX_JSON_BYTES): Promise<Record<string, unknown>> {
   if (!/^application\/json(?:\s*;|$)/iu.test(request.headers.get('content-type') ?? '')) throw new IdentityError('VALIDATION_FAILED', 'JSON content type required')
   const reader = request.body?.getReader()
   if (!reader) throw new IdentityError('VALIDATION_FAILED', 'JSON body required')
@@ -39,7 +39,7 @@ export async function parseJson(request: Request): Promise<Record<string, unknow
       const { done, value } = await reader.read()
       if (done) break
       size += value.byteLength
-      if (size > MAX_JSON_BYTES) throw new IdentityError('VALIDATION_FAILED', 'JSON request too large')
+      if (size > maxBytes) throw new IdentityError('VALIDATION_FAILED', 'JSON request too large')
       chunks.push(value)
     }
   } finally { reader.releaseLock() }

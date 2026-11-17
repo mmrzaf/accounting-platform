@@ -122,7 +122,7 @@ export function createBusinessHttpHandler(
       if (method === 'GET' && url.pathname === '/api/business/reports/profit-and-loss')
         return response(reports.profitAndLoss({ ...scope, from: required(url.searchParams.get('from'), 'from'), through: required(url.searchParams.get('through'), 'through') }))
       if (method === 'GET' && url.pathname === '/api/business/reports/balance-sheet')
-        return response(reports.balanceSheet(scope))
+        return response(reports.balanceSheet({ ...scope, ...(url.searchParams.has('through') ? { through: required(url.searchParams.get('through'), 'through') } : {}) }))
       return response({ error: { code: 'NOT_FOUND', message: 'Not found' }, requestId }, 404)
     } catch (error) {
       const known = error instanceof IdentityError || error instanceof TradeError || error instanceof AccountingError

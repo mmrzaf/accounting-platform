@@ -4,6 +4,8 @@ import { randomUUID } from 'node:crypto'
 import { response } from '../http/request-security.ts'
 
 const MAX_REQUEST_BYTES = 16 * 1024
+const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
+const MAX_CSV_IMPORT_BYTES = 2 * 1024 * 1024
 export interface NodeHttpOptions {
   origin: string | (() => string)
   handler: (request: Request) => Promise<Response>
@@ -43,15 +45,23 @@ export function createNodeHttpServer(options: NodeHttpOptions): Server {
           if (Array.isArray(value)) for (const v of value) headers.append(key, v)
           else if (value !== undefined) headers.set(key, value)
         }
+        // Only the attachment endpoint accepts a large binary payload. All other requests stay small.
+        const path = new URL(req.url, origin).pathname
+        const maxBytes = req.method === 'POST' && path === '/api/documents' ? MAX_ATTACHMENT_BYTES
+          : req.method === 'POST' && path === '/api/imports/contacts' ? MAX_CSV_IMPORT_BYTES
+          : MAX_REQUEST_BYTES
         const chunks: Buffer[] = []
         let size = 0
         for await (const chunk of req) {
           const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as Uint8Array)
           size += bytes.byteLength
-          if (size > MAX_REQUEST_BYTES) break
+          if (size > maxBytes) break
           chunks.push(bytes)
         }
-        if (size > MAX_REQUEST_BYTES) result = bad(413, 'Request body exceeds 16 KiB')
+        if (size > maxBytes) {
+          res.shouldKeepAlive = false
+          result = bad(413, 'Request body exceeds endpoint limit')
+        } else if (req.method === 'GET' && size > 0) result = bad(400, 'GET request must not have a body')
         else {
           // Do not take the request URL, scheme or host from client-supplied proxy headers.
           const request = new Request(new URL(req.url, origin), { method: req.method, headers,
