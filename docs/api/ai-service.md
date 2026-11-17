@@ -1,6 +1,6 @@
 # AI assistant — application service and HTTP contract
 
-**Implementation: source present; not yet installed, compiled, exercised, or release-certified for this milestone.** The company-only schema is in `migrations/0001_initial.sql`. It is a fresh-product baseline; there are no legacy migrations or compatibility adapters.
+**Backend tested on Linux/Node 22.16; live provider and browser remain unverified.** The company-only schema is in `migrations/0001_initial.sql`. It is a fresh-product baseline; there are no legacy migrations or compatibility adapters.
 
 ## Architecture
 
@@ -37,7 +37,7 @@ The model may use up to five read/discovery rounds and then propose **one applic
 - Prior successful operation IDs (and only generated application record identifiers) are reintroduced into the next model context, allowing follow-ups such as “What remains due on that invoice?” without inventing IDs. Selected-page context is validated against company and read permission before use. Record details must be queried using the corresponding authorized tool.
 - Turns are limited to 20 new requests per user per rolling minute. Tool payload, result and provider response sizes are bounded. Read-only discovery is permission-filtered. One pending tool approval per conversation blocks overlapping operations. A provider timeout has no business side effects before a command is accepted.
 
-**Unfinished failure path:** An interrupted provider request can leave a `processing` turn in the database. Automated stale-turn reconciliation and operator recovery, privacy retention/erasure policy, provider cost budgets, real-world currency ambiguity acceptance and live endpoint certification belong to Milestone 5; never automatically replay an uncertain financial command.
+**Interruption recovery:** When a user next opens or sends to a conversation, `recovery.ts` marks processing turns idle for more than three minutes as failed and pending approvals older than fifteen minutes as rejected. Neither action replays a financial command. Interrupted requests and stale approvals are audited. Provider-retention policy, cost budgets, real-world currency ambiguity acceptance and live endpoint certification remain unverified.
 
 ## HTTP surface
 
@@ -54,4 +54,4 @@ Authenticated, cookie/CSRF/same-origin restricted; company always comes from the
 | POST | `/api/ai/actions/:id/approve` | Execute fingerprint-bound proposal |
 | POST | `/api/ai/actions/:id/reject` | Cancel pending proposal |
 
-All mutation requests use CSRF tokens and permission checks. Existing record tools enforce company scope; client-provided IDs or page context do not constitute authority. Source implementation is not evidence of browser execution until Milestone 5 acceptance is performed.
+All mutation requests use CSRF tokens and permission checks. Existing record tools enforce company scope; client-provided IDs or page context do not constitute authority. Scripted backend integration tests are executed; the browser workflow and live-model acceptance are still outstanding.

@@ -28,7 +28,7 @@ pnpm run web:check
 pnpm run web:build
 ```
 
-The browser lockfile is not shipped until resolved and reviewed on a machine with registry access. Commit `web/pnpm-lock.yaml` as a focused dependency commit, then use `pnpm --dir web install --frozen-lockfile` for every later install. **Never fake dependency integrity fields.** Some existing quality gates depend on the installed packages; do not suppress them.
+The browser lockfile is not shipped because this environment cannot access npm. A connected developer must generate and review `web/pnpm-lock.yaml` through a real install, then commit it. Subsequent installs use `pnpm --dir web install --frozen-lockfile`. **Do not manufacture integrity fields.** The E2E runner is now included but has not been executed.
 
 ## 4. Bootstrap a fresh, disposable installation
 
@@ -45,15 +45,22 @@ The CLI prompts for the password securely; it does not accept passwords as shell
 
 For frontend development, run `pnpm run web:dev` separately with the backend running. This uses a local Vite proxy; do not publish the dev server.
 
-## Milestone 4 handoff note — defer execution
+## 4A. Actual browser acceptance (Milestone 5)
 
-The product owner explicitly requested **no dependency installation, builds, tests, or browser execution during Milestone 4**. The commands above are retained as the eventual Milestone 5 bootstrap/acceptance procedure and **were not run** for this source delivery. Start with [AI service](docs/api/ai-service.md), [AI autonomy](docs/ai/autonomy.md), and [assistant UX](docs/ux/assistant-workspace.md). Verify the new conversation schema, bound record tools, compound financial command, UI drawer, provider controls, and existing test contracts during Milestone 5. Do not use real business records before the acceptance gate is complete.
+```sh
+pnpm --dir web exec playwright install --with-deps chromium
+pnpm run web:e2e
+```
+
+This runs a **production-built** React app against a disposable temporary SQLite database and test company. The fixture does not read or alter your installation database. The browser and live provider could not be verified here because the npm registry is unavailable, so do not assume these commands pass until they have been executed on a connected machine. See [release acceptance](docs/validation/release-acceptance.md).
+
+Milestone 5 adds a safe starter accounting chart (Settings, only for empty books), an invoice print/PDF layout, trial-balance CSV export, and interrupted-assistant-turn reconciliation. The built-in chart is **not** an Iranian statutory chart. Real production use still requires the accounting/operational gates.
 
 ## 5. Agent engineering requirements
 
 Use the established module boundaries. All new source is strict `.ts` / `.tsx`. Design a complete vertical workflow, including authorization, database constraints, UI states and accessibility, and accounting regression tests. There is no old-database migration pathway: this is a fresh product with one initial migration.
 
-Run `pnpm run verify`, `pnpm run web:check`, `pnpm run web:build` and appropriate browser E2E where available. Record **actual** checks and any skipped validations. Keep documentation accurate; use focused conventional commits with author `mmrzaf <mohammr.farkhonde12@sharif.edu>`.
+Run `pnpm run verify`, `pnpm run web:check`, `pnpm run web:build` and `pnpm run web:e2e` on a connected machine. Record **actual** checks and any skipped validations. Keep documentation accurate; use focused conventional commits with author `mmrzaf <mohammr.farkhonde12@sharif.edu>`.
 
 ## 6. Current unfinished release gates
 

@@ -27,6 +27,6 @@ The assistant searches **this company's** contacts and accounts, clarifies if â€
 - Bounded recent turns and application-verified record identifiers are sent to the provider to support follow-up questions. Tools retrieve only the data the user is authorized to read. The UI discloses that external-model processing may occur.
 - Provider keys are encrypted separately from the database with an operator-controlled master key. Admins manage the provider within Settings; regular users cannot read it.
 - Pending approvals expire after 15 minutes. Requests use persistent idempotency keys. Failure must never silently double-post. A crashed provider turn can remain pending and needs reconciliationâ€”still a release-blocking operational gap.
-- Provider cost budgets, consent/retention options, stale processing recovery, live-provider capability checks, adversarial prompt injection checks and UI/browser E2E are Milestone 5 acceptance requirements.
+- Provider cost budgets, consent/retention options, stale processing recovery (now implemented; runtime acceptance still required), live-provider capability checks, adversarial prompt injection checks and UI/browser E2E are Milestone 5 acceptance requirements.
 
 See [service contract](../api/ai-service.md) and [AI UX](../ux/assistant-workspace.md).

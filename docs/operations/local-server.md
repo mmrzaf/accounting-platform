@@ -7,13 +7,13 @@ The **actual server** is the loopback Node HTTP listener in `src/platform/server
 From the repo root, after following [START-HERE](../../START-HERE.md) and initializing the database:
 
 ```sh
-corepack pnpm app:doctor -- --json
-corepack pnpm app:serve
+pnpm app:doctor -- --json
+pnpm app:serve
 ```
 
 Default origin: `http://127.0.0.1:3000`. `GET /health/live` reports process reachability; `GET /health/ready` checks database reachability. `app:doctor` reports database integrity, pending migrations, and whether the browser bundle exists. A successful API startup is **not** proof that the UI was built; the CLI explicitly reports `browserBuilt`.
 
-Development browser: `corepack pnpm web:dev` runs Vite separately on loopback port 5173 and proxies `/api` to port 3000. Production browser: `corepack pnpm web:build` writes `web/dist`; the Node server serves it and API from the same origin. Unknown `/api/*` paths return JSON **404** even when a SPA build exists.
+Development browser: `pnpm web:dev` runs Vite separately on loopback port 5173 and proxies `/api` to port 3000. Production browser: `pnpm web:build` writes `web/dist`; the Node server serves it and API from the same origin. Unknown `/api/*` paths return JSON **404** even when a SPA build exists.
 
 ## Security boundary
 

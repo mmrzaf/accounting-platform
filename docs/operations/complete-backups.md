@@ -16,9 +16,9 @@ The timestamped `.partial` directory created during snapshotting is an **atomic 
 ## CLI
 
 ```sh
-corepack pnpm app:backup -- --json
-corepack pnpm app:backup-verify -- --source ./var/backups/BUNDLE_NAME.bundle
-corepack pnpm app:restore -- --source ./var/backups/BUNDLE_NAME.bundle --target ./var/data/restored.sqlite --target-attachments ./var/restored-attachments
+pnpm app:backup -- --json
+pnpm app:backup-verify -- --source ./var/backups/BUNDLE_NAME.bundle
+pnpm app:restore -- --source ./var/backups/BUNDLE_NAME.bundle --target ./var/data/restored.sqlite --target-attachments ./var/restored-attachments
 ```
 
 Configure `APP_DB_PATH`, `APP_ATTACHMENT_DIR`, and `APP_BACKUP_DIR` in `.env` or environment. Source storage must be local and protected from untrusted filesystem users. Restores refuse existing targets and avoid overwriting live databases. Final database and blob hashes are checked after copying.

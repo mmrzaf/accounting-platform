@@ -1,6 +1,6 @@
 # Local database and administrator commands
 
-All commands are invoked through `corepack pnpm <script>` or `node --experimental-strip-types scripts/app.ts <command>`. Add `--json` to get structured output. The installation owns a single SQLite database and attachment root.
+All commands are invoked through `pnpm <script>` or `node --experimental-strip-types scripts/app.ts <command>`. Add `--json` to get structured output. The installation owns a single SQLite database and attachment root.
 
 | Operation | Script | Behavior |
 |---|---|---|
