@@ -17,7 +17,7 @@ export function createAiHttpHandler(identity: ReturnType<typeof createIdentitySe
       const url = new URL(request.url)
       const secure = assertLocalOrTls(url)
       const method = request.method.toUpperCase()
-      if (method !== 'GET' && method !== 'POST' && method !== 'PUT')
+      if (method !== 'GET' && method !== 'POST' && method !== 'PUT' && method !== 'DELETE')
         return response({error:{code:'NOT_FOUND',message:'Not found'},requestId},404)
       if (method !== 'GET') assertSameOrigin(request,url)
       const sessionToken = bearerCookie(request,secure)
@@ -40,6 +40,18 @@ export function createAiHttpHandler(identity: ReturnType<typeof createIdentitySe
         return response(ai.setPolicy({sessionToken,companyId,
           autoDrafts:b['autoDrafts'] as boolean,autoPost:b['autoPost'] as boolean }))
       }
+      if (url.pathname === '/api/ai/conversations' && method === 'GET')
+        return response({items:ai.listConversations({sessionToken,companyId})})
+      if (url.pathname === '/api/ai/conversations' && method === 'POST') {
+        const b = await parseJson(request)
+        return response(ai.createConversation({sessionToken,companyId,
+          ...(b['title'] === undefined ? {} : {title:text(b['title'],'title')})}),201)
+      }
+      const conversation = /^\/api\/ai\/conversations\/([0-9a-f-]{36})$/u.exec(url.pathname)
+      if (conversation && method === 'GET')
+        return response(ai.getConversation({sessionToken,companyId,conversationId:conversation[1]!}))
+      if (conversation && method === 'DELETE')
+        return response(ai.archiveConversation({sessionToken,companyId,conversationId:conversation[1]!}))
       if (url.pathname === '/api/ai/turns' && method === 'GET')
         return response({items:ai.listTurns({sessionToken,companyId,
           ...(url.searchParams.has('limit') ? {limit:Number(url.searchParams.get('limit'))} : {}) })})
@@ -47,6 +59,8 @@ export function createAiHttpHandler(identity: ReturnType<typeof createIdentitySe
         const b = await parseJson(request)
         return response(await ai.runTurn({sessionToken,companyId,message:text(b['message'],'message'),
           clientRequestId:text(b['clientRequestId'],'clientRequestId'),
+          ...(b['conversationId'] === undefined ? {} : {conversationId:text(b['conversationId'],'conversationId')}),
+          ...(b['context'] === undefined ? {} : {context:b['context']}),
           ...(b['executionMode'] === undefined ? {} : {executionMode:b['executionMode'] as 'auto'|'review'}) }),201)
       }
       const turn = /^\/api\/ai\/turns\/([0-9a-f-]{36})$/u.exec(url.pathname)
