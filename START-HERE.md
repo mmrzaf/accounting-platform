@@ -41,9 +41,21 @@ pnpm run app:doctor
 pnpm run app:serve
 ```
 
-The CLI prompts for the password securely; it does not accept passwords as shell arguments. Visit **http://127.0.0.1:3000** and enter username `owner` and the password. **There is no company slug, switcher, or selection screen.** In Settings, create the accounting book, fiscal period, postable accounts, and **posting defaults** (receivables, payables, revenue, expense and bank/cash) once before recording invoices or payments. See [core workflow acceptance](docs/ux/workflow-acceptance.md).
+The CLI prompts for the password securely; it does not accept passwords as shell arguments. Visit **http://127.0.0.1:3000** and enter username `owner` and the password. **There is no company slug, switcher, or selection screen.** On the **Overview** screen, follow the guided accounting setup: choose the reporting currency, create the starter chart and define the fiscal period. The starter chart configures the five basic posting accounts; edit them under Settings if needed. This is a test starter chart, **not a statutory Iranian chart**. Use real business data only after accounting review. See [core workflow acceptance](docs/ux/workflow-acceptance.md).
 
 For frontend development, run `pnpm run web:dev` separately with the backend running. This uses a local Vite proxy; do not publish the dev server.
+
+### Optional: enable the contextual AI assistant
+
+AI is **off** until a local encryption key and company provider are configured. Do not paste an API key into CLI arguments. From the project directory:
+
+```sh
+pnpm run app:ai-initialize  # safely creates APP_AI_MASTER_KEY_BASE64 in your local .env; refuses overwrite
+pnpm run app:serve          # restart the server if it is already running
+```
+
+Sign in as an administrator and open **Settings → AI & privacy** to enter the OpenAI-compatible base URL, model, and provider API key. The browser never receives saved provider secrets. Back up the private `.env` file securely; the AI encryption key must remain available to decrypt configured provider credentials. If AI is not configured, the assistant displays a helpful setup state rather than accepting unusable requests. The core accounting application is independent of AI.
+
 
 ## 4A. Actual browser acceptance (Milestone 5)
 
@@ -62,6 +74,18 @@ Use the established module boundaries. All new source is strict `.ts` / `.tsx`. 
 
 Run `pnpm run verify`, `pnpm run web:check`, `pnpm run web:build` and `pnpm run web:e2e` on a connected machine. Record **actual** checks and any skipped validations. Keep documentation accurate; use focused conventional commits with author `mmrzaf <mohammr.farkhonde12@sharif.edu>`.
 
-## 6. Current unfinished release gates
+## 6. Browser UX acceptance
+
+After `web:build` and the Node server start, inspect the following manually in **Persian RTL and English LTR**, on desktop and a narrow viewport:
+
+1. Newly bootstrapped company: Overview guides setup without showing raw "Accounting record not found" errors.
+2. Complete book/chart/period setup, create a contact, post a sales invoice, record partial receipt, inspect the ledger.
+3. Empty directories explain the next action; populated records support search, filtering and drill-down.
+4. AI missing: contextual panel gives setup instructions. AI enabled: conversation and invoice context, approval preview and created-record links function correctly.
+5. Verify logout, keyboard focus, responsive navigation, invoice printing and error recovery.
+
+See [UX release checklist](docs/ux/ui-release-checklist.md) for detailed acceptance.
+
+## 7. Current unfinished release gates
 
 Browser build and real interaction testing after the shell redesign, fiscal close, FX settlements, valued stock, full refunds, tax journal posting, live-provider acceptance for the contextual assistant and general multi-action agent execution, Drizzle decision, and regulatory sign-off. See [open work](docs/roadmap/open-work.md). Do not declare production-ready because an API responds successfully.

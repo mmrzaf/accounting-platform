@@ -13,7 +13,7 @@ The repository contains a SQLite-backed accounting and business service, Node HT
 | Business operations | Contacts, non-stock multi-line sales/purchases, atomic invoice/payment posting, partial allocations, restricted credit notes |
 | Extensions | Quantity inventory, effective-dated tax codes, CSV contacts, company-owned attachments, selected reports |
 | AI | Optional contextual assistant, user-owned conversations, bounded read tools, atomic purchase/sale with optional payment, settlement commands, approval cards, role-scoped execution, stale-turn recovery and audit (live provider and UI acceptance unverified) |
-| Interface | Username/password sign-in; grouped responsive shell, bilingual RTL/LTR navigation, keyboard page switcher; multi-line invoice entry, partial settlement, contact records and date-filtered account ledger, invoice print layout, trial-balance CSV (browser acceptance pending) |
+| Interface | Username/password sign-in; revised responsive shell and guided initial accounting setup, bilingual RTL/LTR, useful empty states, contextual AI readiness, invoice/payment entry, contact directory, stock catalogue, ledger drill-down, invoice print and trial-balance CSV (browser acceptance pending) |
 | Operations | Complete DB+attachment backups, migrations, diagnosis, local HTTP server |
 
 This is deliberately **one Company level**. A local installation may store several independent companies, but their users and records cannot overlap. Company creation is CLI-only. The backend does not trust company identifiers supplied by the browser.
@@ -36,7 +36,7 @@ pnpm run app:bootstrap -- --name "Example Company" --admin-username owner --admi
 pnpm run app:serve
 ```
 
-Enter the administrator password when prompted. Visit `http://127.0.0.1:3000` and sign in with **username and password only**. The default listener is loopback-only. The browser lockfile must be reviewed and committed on a connected machine, followed by frozen installations. The web build cannot be certified in this environment. For actual machine setup, use [START-HERE](START-HERE.md).
+Enter the administrator password when prompted. Visit `http://127.0.0.1:3000` and sign in with **username and password only**. The default listener is loopback-only. The browser lockfile must be reviewed and committed on a connected machine, followed by frozen installations. The web build must be validated on your machine. The first-run dashboard guides book, chart, and fiscal-period setup. Optional AI encryption can be initialized with `pnpm run app:ai-initialize`; configure the model in Settings and restart the server. For actual machine setup, use [START-HERE](START-HERE.md).
 
 **Important:** Use `pnpm run setup` rather than `pnpm setup`; the latter invokes pnpm's own built-in setup operation.
 
