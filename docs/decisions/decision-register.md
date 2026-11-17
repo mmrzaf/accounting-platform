@@ -19,18 +19,18 @@ This is the source of truth for decision **status**. `CONFIRMED` means explicitl
 | D-13 | Accounting books | One primary ledger per company, base currency and fiscal periods | IMPLEMENTED-PROVISIONAL | Accounting service built; user-facing multi-company semantics still require signoff |
 | D-14 | Currency model | Exact int64 minor units, rational FX snapshots, half-even conversion | IMPLEMENTED-PARTIAL | Realized differences, revaluation and source-document currency logic pending |
 | D-15 | Chart of accounts | Editable per-company hierarchy with starter template | PROPOSED | Must preserve historical references |
-| D-16 | Party model | Organization-wide contact identity, company-specific account relationships | IMPLEMENTED-PROVISIONAL | Phase 5 services and schema; user-facing policy still revisable |
+| D-16 | Party model | Organization-wide contact identity, company-specific account relationships | IMPLEMENTED-PROVISIONAL | Current services and schema; user-facing policy still revisable |
 | D-17 | Inventory | Optional, one location; moving weighted-average valuation | PENDING | Requires financial postings/COGS contract |
-| D-18 | Authentication | Local credentials, scrypt hashing, opaque sessions and local operator recovery | IMPLEMENTED-PARTIAL | Web handler built, not deployed or browser-tested |
+| D-18 | Authentication | Local credentials, scrypt hashing, opaque sessions and local operator recovery | IMPLEMENTED-PARTIAL | Node HTTP identity adapter implemented; browser acceptance not completed |
 | D-19 | Company permissions | Role grants scoped to organization or to explicit company | IMPLEMENTED-PROVISIONAL | Backend enforces scope; final user-facing company access semantics still require approval |
 | D-20 | Locales | Persian/English, RTL/LTR, Jalali/Gregorian display, IRR/Toman conventions | CONFIRMED | Localization from first UI workflow |
-| D-21 | Operations | Local Node server, LAN mode, consistent backups/restore | CONFIRMED | Single SQLite file on server-local filesystem |
+| D-21 | Operations | Local Node server, LAN mode, consistent backups/restore | CONFIRMED | Local SQLite and attachment storage; a complete backup bundle is implemented |
 | D-22 | Integration | Iranian fiscal/tax integrations later and only with verified regulations | CONFIRMED | Stable extension points, no unsupported claims |
 | D-23 | Runtime | Node.js **24 primary**, support **22.16+ and 26** | CONFIRMED | Node 22.16 tested locally; Node 24/26 and OS matrix pending |
 | D-24 | Phase delivery contract | Clean Git commits and full repository archives after each authorized phase | CONFIRMED | Preserve full `.git` history and clean working tree |
-| D-25 | Phase 2 foundation | CLI, checksummed migrations, isolated backup/restore, logging, localization primitives and CI recipe | IMPLEMENTED-PARTIAL | Offline functionality tested; full framework build and runtime matrix blocked |
-| D-26 | Phase 3 foundation | SQLite identity, organization/company-scoped RBAC, sessions, security audit, operator bootstrap and HTTP adapter | IMPLEMENTED-PARTIAL | Offline services tested; TanStack Start/UI/OS/runtime integration blocked |
-| D-27 | Accounting core | Company chart, fiscal periods, immutable balanced posting/reversals, ledger projections | IMPLEMENTED-PARTIAL | Standalone SQLite service and invariants tested; formal reports and UI pending |
+| D-25 | Recovery contract | One consistent database-and-attachments bundle; no public SQLite-only backup route | IMPLEMENTED-UNVERIFIED | Static cleanup consolidated the implementation; runtime verification still required |
+| D-26 | HTTP boundary | Loopback Node HTTP API with authenticated service composition; reverse-proxy HTTPS for LAN | IMPLEMENTED-PARTIAL | Browser UI, full extension routes and TLS acceptance still absent |
+| D-27 | Persistence boundary | Current Node SQLite service queries with unchecked row assertions | KNOWN-DEBT | Replace with schema-validated/Drizzle projections before production release |
 | D-28 | Trading workflow | Base-currency non-stock invoices, payments/receipts, append-only allocations, controlled reversals | IMPLEMENTED-PARTIAL | Backend service tested; UI, source-document FX, returns and tax work remain |
 | D-29 | AI operations (initial subset) | Permission-filtered tools, per-company autonomy policy, durable approval, encrypted org provider config | IMPLEMENTED-PARTIAL | Single-turn, one mutation max; mock-tested backend+HTTP adapter only; no UI/live provider/compound workflows |
 

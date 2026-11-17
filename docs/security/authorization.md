@@ -4,7 +4,7 @@
 
 One user belongs to exactly one organization. Permissions are assigned to **roles**, roles are assigned to users, and users may have multiple roles. No direct user-specific grant exceptions. Permission names take `resource.action` form, for example `invoice.read`, `invoice.post`, `payment.create`, `journal.reverse`, `period.close`, `users.manage`, `ai.configure`. Distinguish `read` vs `export`, `create` vs `post`, `reverse` vs `delete` and `configure` vs use.
 
-Phase 3 implementation: grants either organization-wide (administrative functions) or company-specific (accounting and operational functions). A role definition is a permission template; a user's assignment to a company grants it there only. Organization administrators manage users/companies/roles but receive explicit company-admin membership to access company data. User-facing company multiplicity still requires signoff.
+Current role assignment behavior: grants either organization-wide (administrative functions) or company-specific (accounting and operational functions). A role definition is a permission template; a user's assignment to a company grants it there only. Organization administrators manage users/companies/roles but receive explicit company-admin membership to access company data. User-facing company multiplicity still requires signoff.
 
 ## Server authorization sequence
 
@@ -25,7 +25,7 @@ Phase 3 implementation: grants either organization-wide (administrative function
 
 ## Web and operational security
 
-Phase 3 provides scrypt hashing, opaque random bearer sessions stored by hash, secure/httpOnly/sameSite cookies in the Web adapter, CSRF enforcement, persistent account lockout, session invalidation and no-store identity responses. LAN TLS, actual server mounting, broader rate limits and protected attachment paths require future integration. The app must bind to loopback unless LAN access is explicitly enabled. Network-level access is not a substitute for authentication.
+The identity layer provides scrypt hashing, opaque random bearer sessions stored by hash, secure/httpOnly/sameSite cookies in the Web adapter, CSRF enforcement, persistent account lockout, session invalidation and no-store identity responses. The HTTP host is mounted and loopback-only; LAN TLS requires a separately configured reverse proxy and operational acceptance testing. Additional rate-limiting and attachment-route design remain release work. Network-level access is not a substitute for authentication.
 
 ## Audit
 

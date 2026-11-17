@@ -25,7 +25,7 @@ Autonomy levels must not grant authority beyond the invoking user's permissions.
 
 ## Example AI execution
 
-User: 'Bought 20 units from Ali for 50 million toman, paid 20, rest due.' Identify supplier, item, currency denomination and bank account; ask targeted question only if ambiguous. Build `CreatePurchase` and `RecordPayment` commands; run deterministic validation and permission/risk policy. Execute with idempotency and transaction ownership. Respond with posted document numbers, amount owed and any pending actions; do not claim external money transfer.
+**Target workflow, not yet supported as one atomic AI command:** User: 'Bought 20 units from Ali for 50 million toman, paid 20, rest due.' Identify supplier, item, currency denomination and bank account; ask targeted question only if ambiguous. Build `CreatePurchase` and `RecordPayment` commands; run deterministic validation and permission/risk policy. Execute with idempotency and transaction ownership. Respond with posted document numbers, amount owed and any pending actions; do not claim external money transfer.
 
 ## Orchestration essentials
 

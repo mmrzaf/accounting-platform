@@ -1,31 +1,20 @@
-# Module and dependency map
+# Implemented module map
 
-A single deployable modular monolith. Modules own behavior and their data invariants, not arbitrary table groups.
+The project is a modular monolith. Responsibilities match real source directories rather than planned placeholder modules.
 
 | Module | Owns | Depends on |
 |---|---|---|
-| Identity | Users, credentials, sessions, role assignments | Organizations, platform auth |
-| Organizations & companies | Company membership, company settings, legal identity | Identity via stable actor contracts |
-| Accounting | Account chart, journals, posting, periods, ledger queries, rates | Company scope, pure money primitives |
-| Trading (`src/modules/trading/`) | Shared contacts, source invoices, receipts/payments, allocations and journal provenance | Identity actor + accounting reference/posting ports |
-| Catalogue | General goods/services master remains unimplemented; inventory has a small company-local SKU list | Organization/company scope |
-| Sales | Sales documents and credit notes, lifecycle | Parties, catalogue, accounting posting port |
-| Purchasing | Purchase documents and supplier credits | Parties, catalogue, accounting posting port |
-| Payments | Receipts, disbursements, allocations, refunds | Sales, purchasing, accounting posting port |
-| Inventory (optional) | **Quantity-only** company items/movements; valuation unimplemented | Identity company scope |
-| Reports | Ledger-derived P&L / balance summary and current invoice-age projection | Accounting, trading read projections |
-| Documents | Scoped attachment metadata and local blob integrity; coordinated backup pending | Identity + company references |
-| AI (`src/modules/ai/`) | Encrypted provider config, contextual model calls, constrained tools, approval and execution policy | Identity permissions + existing trading/accounting application services |
-| Platform | Database, migrations, configuration, logging, backup, CLI | Infrastructure-only dependencies |
+| Identity | Organizations, companies, sessions, users, RBAC, administrator recovery | SQLite, common platform primitives |
+| Accounting | Books, currencies, fiscal periods, accounts, journal posting, reversals, reports | Identity and SQLite |
+| Trading | Contacts, invoices, payments, settlements, credit notes | Identity and accounting |
+| Reports | Ledger-derived business summaries and current invoice aging | Identity, accounting and trading |
+| Inventory | Quantity-only SKU and movement records | Identity, accounting/trading references |
+| Tax | Dated tax-code definitions and exact quotations | Identity, accounting/trading references |
+| Imports | Transactional contact CSV import | Identity and trading |
+| Documents | Attachment metadata and immutable local blobs | Identity and business references |
+| AI | Provider configuration, bounded tools, approval/audit and business execution | Identity, accounting and trading |
+| Platform | SQLite, HTTP/server composition, CLI, logging, backup and configuration | Infrastructure and explicit application-service composition |
 
-## Direction rule
+Ownership does **not** imply that every service has an HTTP endpoint or browser screen. Manufacturing, advanced warehousing, financially valued inventory, statutory taxation, refunds, and external bank execution are not implemented. [Current status](../validation/implementation-status.md) is authoritative for delivered-vs-missing scope.
 
-Presentation and transport -> application use cases -> domain invariants and ports -> infrastructure implementations. Shared contracts are intentionally small. Domain code must not import React/TanStack, Drizzle, database driver or model SDKs. A module may not read another module's tables without a documented read interface. Phase 5 trading reads accounting-owned chart/book data through `accounting/references.ts` and posts through `accounting/posting.ts`.
-
-## Transaction ownership
-
-Application use cases own the transaction. Accounting is called as a local service inside the same transaction as the source-document state change and payment allocation. The AI orchestrator owns an outer action transaction and existing services use uniquely named SQLite savepoints for nested atomic work. Avoid independent commits inside an AI execution. Posting request idempotency checks and resulting entries must commit atomically.
-
-## Suggested eventual layout (not scaffolding)
-
-`src/modules/{accounting,sales,purchasing,payments,...}` with per-module `domain/`, `application/`, `infrastructure/`, `ui/` when warranted; `src/platform/` for persistence/security/config; `src/app/` for Start adapters; `src/shared/` for tightly constrained common primitives. No mandatory layers for tiny modules, no package-per-module by default.
+Application commands own transactions and domain validation. Accounting is the only writer of posted financial journal entries. The AI system calls these application services, never direct financial SQL. The implementation currently uses explicit SQL projections; its unchecked row casting must be resolved before a production persistence release.

@@ -1,6 +1,6 @@
 # Product scope and success criteria
 
-**Status:** Proposed Phase 0 baseline, 2026-11-17.
+**Status:** Product scope baseline; delivered features and gaps are tracked in [implementation status](validation/implementation-status.md).
 
 ## Product identity
 

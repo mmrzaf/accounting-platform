@@ -2,7 +2,7 @@
 
 **Implementation:** `src/modules/accounting/` and checksummed migration `migrations/0003_accounting_ledger.sql`.
 
-This is a **framework-independent, SQLite-backed general ledger**, now integrated with standalone Phase 5 invoice/payment services, but not an end-user accounting interface. The company/organization model remains a provisional product decision; this implementation makes the company the financial isolation boundary.
+This is a **framework-independent, SQLite-backed general ledger**, integrated with the current invoice/payment application services, but not an end-user accounting interface. The company/organization model remains a provisional product decision; this implementation makes the company the financial isolation boundary.
 
 ## Ownership and entry points
 
@@ -24,7 +24,7 @@ The public interface uses TypeScript definitions in `types.ts`. Amounts are **ca
 5. Insert a staging header and immutable lines, then transition to `posted`. SQLite guards the transition with an exact custom `bigint_total` aggregate, count, active-account, period and base-currency checks.
 6. Write security audit in that **same transaction**, then commit. Retry with the same idempotency key and identical normalized payload returns the original posted journal. Different payload or duplicate source-event identity is a conflict.
 
-`postWithinTransaction` requires an existing database transaction. Phase 5 purchase/sale/payment workflows update their source documents and call the protected internal posting service inside **one** transaction, not post first and update the document afterward. Do not perform slow I/O or contact an AI provider while holding a writer transaction. It does not itself start nested transactions.
+`postWithinTransaction` requires an existing database transaction. Purchase/sale/payment workflows update their source documents and call the protected internal posting service inside **one** transaction, not post first and update the document afterward. Do not perform slow I/O or contact an AI provider while holding a writer transaction. It does not itself start nested transactions.
 
 ## Ledger accounting and correction
 
@@ -44,7 +44,7 @@ The public interface uses TypeScript definitions in `types.ts`. Amounts are **ca
 
 ## Explicit limitations / future work
 
-The Phase 5 trading module provides invoice-to-ledger mapping and payment allocations. The current version does **not** provide realized FX settlement differences, period-end FX revaluation, fiscal-year close/retained-earnings carry forward, tax policy, automated account templates, account reconciliations, attached documents, UI or AI tools. `financialSummary` is a **cumulative category reconciliation**, not a full formal balance sheet/P&L by fiscal year. The source document reference is an idempotent *opaque provenance key* until source services are implemented.
+The trading module provides invoice-to-ledger mapping and payment allocations. The current version does **not** provide realized FX settlement differences, period-end FX revaluation, fiscal-year close/retained-earnings carry forward, tax policy, automated account templates, account reconciliations, attached documents, UI or AI tools. `financialSummary` is a **cumulative category reconciliation**, not a full formal balance sheet/P&L by fiscal year. The source document reference is an idempotent *opaque provenance key* until source services are implemented.
 
 The `node:sqlite` adapter is used to run end-to-end offline tests. Its custom aggregate is installed by `openDatabase` on **every** connection. A future production database-driver replacement must preserve the posting-trigger contract or replace it with an equally strong exact DB-side mechanism, with tests. Drizzle and TanStack Start remain unintegrated, and Windows/macOS/Node 24/26 validation is still pending.
 

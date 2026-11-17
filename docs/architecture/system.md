@@ -1,40 +1,32 @@
-# System context and runtime boundaries
+# System architecture and trust boundaries
 
-**Status:** Phase 0 design baseline; no deployed code.
+## Implemented backend
 
 ```text
-Browsers (Persian RTL / English LTR)
-        |
-        | LAN HTTP(S), session cookie, CSRF protection
-        v
-TanStack Start / Node.js (one process per installation)
-        | server adapters (routes/functions, input validation)
-        v
-Authenticated application services <--- AI orchestrator (same service contracts)
-        |                                    |
-        | checked roles, org/company scope    +---- OpenAI-compatible endpoint
-        | business rules, transactions              (only if configured/available)
-        v
-Domain modules / accounting posting
-        |
-        +------ SQLite on local server disk (migrations, WAL, FK checks)
-        +------ Managed attachment storage (not publicly reachable)
-        +------ Structured audit / operator logs
+CLI / Node HTTP request / AI operator
+                 |
+     Authenticated service calls
+                 |
+   Identity -> Accounting -> Trading
+                 |             |
+                 +------ Business extensions and reports
+                 |
+         SQLite (local WAL)
+                 +--- Managed immutable attachment blobs
+                 +--- Complete backup bundles
 ```
 
-## Scope and trust boundaries
+Organizations isolate users and business data. Each company holds separate ledger, fiscal periods, currency and accounting source records. User sessions belong to one organization; company access follows assigned roles. HTTP handlers decode requests and invoke the same application services used by the AI tools.
 
-- **Installation:** deployment/backup boundary. One Node process owns one SQLite database file; do not put the active DB on NFS/SMB.
-- **Organization:** strongest isolation boundary; every user belongs to exactly one. No switching between organizations inside a session.
-- **Company:** accounting/legal unit within organization (pending signoff). Ledger, account codes, numbering, fiscal periods, base currency, and balances must never cross companies.
-- **Request:** every application command receives server-derived actor and scope, not a trusted `organization_id` supplied by client or AI.
-- **Money:** only the accounting engine creates posted journal lines, under an owned transactional boundary.
-- **AI:** optional untrusted interpretation layer. Structured command plans are evaluated exactly as human UI commands.
+The current Node HTTP API is a real implemented boundary, not the intended browser UI. No React/TanStack screens, Drizzle-backed persistence, or automatic bank integrations are present. Source/UI plans live separately in [implementation status](../validation/implementation-status.md).
 
-## Deployment boundary
+## Invariants and operational assumptions
 
-A locally installed Node application is accessed by browser over loopback by default. LAN access is deliberate, with HTTPS and a trusted local certificate or approved reverse proxy. Avoid default `0.0.0.0` exposure. External AI is optional and disabled until configured by an authorized administrator.
+- SQLite must reside on local storage; WAL permits concurrent readers but only one writer.
+- Accounting uses exact minor units and balanced, append-only journal posts.
+- Domain services enforce scopes and permissions independently of transport adapters.
+- AI plans are untrusted inputs and are subject to the same validations and transaction boundaries.
+- Attachments live in managed local storage and are backed up with the database's committed attachment metadata.
+- The HTTP listener accepts loopback connections only; LAN use requires TLS termination and a verified proxy configuration.
 
-## Anti-patterns to avoid
-
-No React components touching database connections, no implicit global current-company singleton in domain code, no cross-module raw SQL in controllers, no public financial response caches, no AI model publishing posted journal lines directly, no distributed-service infrastructure at the outset.
+Do not silently introduce multi-process writers, cross-company accounting truth, external financial mutations, or autonomous privileged AI operations without a revised architecture decision and tests.

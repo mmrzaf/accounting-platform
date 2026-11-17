@@ -15,6 +15,6 @@ React/Router plus Hono/Fastify exposes explicit separate HTTP contracts but adds
 
 Server functions are independently callable endpoints; enforce auth/permissions/CSRF at each boundary. A real production build/start, native driver install, migrations, bundling and cross-OS testing must pass before promoting this ADR to accepted.
 
-## Phase 2 runtime amendment (2026-11-17)
+## Runtime amendment (2026-11-17)
 
-User explicitly selected Node 24 as primary with 22 and 26 compatibility. This runtime target is **CONFIRMED**. External TanStack/Drizzle driver validation remains pending. Phase 2 uses `node:sqlite` only for administrative foundation CLI probes, **not** as an accepted Drizzle production driver. Vite 8 supports the Node 22.16 minimum per its official requirements.
+User explicitly selected Node 24 as primary with 22 and 26 compatibility. This runtime target is **CONFIRMED**. External TanStack/Drizzle driver validation remains pending. The current backend uses `node:sqlite` in identity, accounting, business services and infrastructure. This is a real current implementation choice, not Drizzle integration or a verified long-term driver decision. Vite 8 supports the Node 22.16 minimum per its official requirements.

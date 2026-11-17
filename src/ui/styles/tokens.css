@@ -1,4 +1,4 @@
-/* Phase 2 design-system primitives: neutral by design; no dashboard-specific styling. */
+/* Neutral design tokens; no dashboard-specific styling or React application is implied. */
 :root {
   color-scheme: light;
   --font-ui: system-ui, -apple-system, 'Segoe UI', sans-serif;

@@ -39,7 +39,7 @@ These services are **framework-independent, company-scoped TypeScript backends**
 
 - Server-chosen local storage paths derived from authenticated UUIDs, never user filenames; UUID-scoped metadata and reference checks; fixed allowed MIME types, maximum 10 MiB, SHA-256 integrity verification on reading.
 - Filesystem write precedes database metadata commit; failures are cleaned up when observed. Crash between writing the file and committing metadata may leave an orphan blob for an operator to reconcile.
-- Data is **not** covered by the present SQLite-only backup command. Until consistent combined database-and-attachments backups, restore verification, upload/download HTTP controls, and filesystem threat testing are implemented, do **not** rely on this as a production document repository.
+- Data is covered by the complete database-and-attachments backup command. Browser upload/download HTTP routes and filesystem threat acceptance remain missing; do **not** treat this service as a finished document repository.
 
 ## Development obligations
 
