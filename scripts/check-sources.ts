@@ -2,7 +2,7 @@
 import { readdirSync } from 'node:fs'
 import { join } from 'node:path'
 
-const roots = ['src', 'scripts', 'tests', 'experiments']
+const roots = ['src', 'scripts', 'tests']
 const sources: string[] = []
 const forbidden: string[] = []
 function walk(directory: string): void {
