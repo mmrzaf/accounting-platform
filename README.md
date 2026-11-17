@@ -48,7 +48,7 @@ Enter the administrator password when prompted. Visit `http://127.0.0.1:3000` an
 - `migrations/` defines the **new company-only baseline**. All future migrations must be append-only; never rewrite already-applied new-baseline migrations.
 - TypeScript is strict, and the new shell uses restrained components, accessible focus states, and RTL/LTR layouts.
 
-Read [architecture](docs/architecture/system.md), [authorization](docs/security/authorization.md), [accounting invariants](docs/accounting/accounting-core.md), [decision register](docs/decisions/decision-register.md), [UX foundation](docs/ux/design-foundation.md), and [current readiness](docs/validation/implementation-status.md).
+Read [architecture](docs/architecture/system.md), [authorization](docs/security/authorization.md), [accounting invariants](docs/accounting/accounting-core.md), [decision register](docs/decisions/decision-register.md), [UX foundation](docs/ux/design-foundation.md), and [current readiness](docs/validation/implementation-status.md) and [executed verification evidence](docs/validation/execution-evidence.md).
 
 ## Verification and release caveats
 
