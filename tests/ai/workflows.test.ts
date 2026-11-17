@@ -88,7 +88,7 @@ test('model searches contacts with a read-only tool then explains the result', a
     assert.match(result.reply ?? '',/Ali/u)
     assert.equal(result.action,null)
     assert.equal(mock.calls(),2)
-    assert.ok(JSON.stringify(mock.observed[0]?.messages).includes('base currency: IRR'))
+    assert.ok(JSON.stringify(mock.observed[0]?.messages).includes('Base currency IRR'))
     assert.ok(mock.observed[1]?.messages.some(message => (message as { role?:string }).role === 'tool'))
     assert.equal(f.db.prepare('SELECT count(*) AS n FROM ai_actions').get()?.['n'],0)
   },mock.fetcher)
@@ -101,7 +101,7 @@ test('contact creation is autonomous only under signed-in user permissions and r
     const first = await f.ai.runTurn(request)
     assert.equal(first.status,'completed')
     assert.equal(first.action?.state,'completed')
-    assert.equal((first.action?.result as {displayName:string}).displayName,'Sara')
+    assert.equal(first.action?.links.some(link => link.kind === 'contact'),true)
     const repeated = await f.ai.runTurn(request)
     assert.equal(repeated.id,first.id)
     assert.equal(mock.calls(),1)
@@ -120,7 +120,7 @@ test('posting requires approval by default, with exact preview and permission re
     const proposal = await f.ai.runTurn(run(f.scope,'Post the sale invoice','auto'))
     assert.equal(proposal.status,'awaiting_approval')
     assert.equal(proposal.action?.state,'awaiting_approval')
-    assert.deepEqual(proposal.action?.input,{invoiceId:draft.id})
+    assert.equal(proposal.action?.preview.title,'Post invoice')
     assert.equal(f.db.prepare('SELECT count(*) AS n FROM journal_entries').get()?.['n'],0)
     assertCode(() => f.ai.approveAction({ ...f.scope,actionId:proposal.action!.id,expectedFingerprint:'wrong' }), 'CONFLICT')
     const confirmed = f.ai.approveAction({ ...f.scope,actionId:proposal.action!.id,expectedFingerprint:proposal.action!.fingerprint })
@@ -143,7 +143,7 @@ test('company policy permits an explicit auto-post; rejection performs no financ
     const completed = await f.ai.runTurn(run(f.scope,'Post the sale','auto'))
     assert.equal(completed.status,'completed')
     assert.equal(completed.action?.state,'completed')
-    assert.equal((completed.action?.result as {status:string}).status,'posted')
+    assert.equal(completed.action?.links.some(link => link.kind === 'invoice' && link.id === invoice.id),true)
     assert.equal(f.db.prepare('SELECT count(*) AS n FROM journal_entries').get()?.['n'],1)
     mock.enqueue(response('',[tool('create_contact',{displayName:'Never Created'})]))
     const review = await f.ai.runTurn(run(f.scope,'Create a contact','review'))
@@ -312,5 +312,59 @@ test('financial read tools derive exact trial balances from the accounting engin
     assert.equal(result.totalDebitMinor,'7654321')
     assert.equal(result.totalCreditMinor,'7654321')
     assert.equal(f.db.prepare('SELECT count(*) AS n FROM ai_actions').get()?.['n'],0)
+  },mock.fetcher)
+})
+
+// Milestone 4 contract cases. Authored but intentionally not run until Milestone 5.
+test('persistent user conversation provides verified record references to a follow-up turn', async () => {
+  const mock = scripted(response('', [tool('create_contact',{ displayName:'Followup counterparty' })]))
+  await fixture(async f => {
+    const first = await f.ai.runTurn(run(f.scope,'Add a contact named Followup counterparty','auto'))
+    const conversationId = first.conversationId
+    assert.equal(first.action?.state,'completed')
+    const contactLink = first.action?.links.find(link => link.kind === 'contact')
+    assert.ok(contactLink)
+    const history = f.ai.getConversation({ ...f.scope, conversationId })
+    assert.equal(history.turns.length,1)
+    assert.equal(history.turns[0]?.message,'Add a contact named Followup counterparty')
+    mock.enqueue(response('That contact is saved in the current company.'))
+    const next = await f.ai.runTurn({...run(f.scope,'What contact did you just create?','review'),conversationId})
+    assert.equal(next.status,'completed')
+    assert.equal(f.ai.getConversation({...f.scope,conversationId}).turns.length,2)
+    const context = JSON.stringify(mock.observed[1]?.messages)
+    assert.ok(context.includes(contactLink.id))
+    assert.ok(context.includes('Previously completed operation record references'))
+    const items = f.ai.listConversations(f.scope)
+    assert.equal(items[0]?.id,conversationId)
+  }, mock.fetcher)
+})
+
+test('single AI compound trade command posts invoice and partial receipt atomically', async () => {
+  const mock=scripted()
+  await fixture(async f => {
+    const ap=f.accounting.createAccount({...f.scope,code:'payables',name:'Payables',category:'liability'}).id
+    const expenses=f.accounting.createAccount({...f.scope,code:'expenses',name:'Expenses',category:'expense'}).id
+    f.accounting.configurePostingDefaults({...f.scope,receivablesId:f.accounts.ar,payablesId:ap,
+      revenueId:f.accounts.revenue,expenseId:expenses,cashId:f.accounts.bank})
+    f.ai.setPolicy({...f.scope,autoDrafts:true,autoPost:true})
+    mock.enqueue(response('',[tool('record_trade',{
+      kind:'sale',partyId:f.ali.id,issuedOn:'2026-11-17',description:'Twenty service units',
+      expectedTotalMinor:'50000000',paidMinor:'20000000',paidOn:'2026-11-17',
+      lines:[{itemKind:'service',description:'Service unit',quantity:'20',unitPriceMinor:'2500000'}],
+    })]))
+    const result=await f.ai.runTurn(run(f.scope,'Sell 20 units for 50,000,000, receive 20,000,000','auto'))
+    assert.equal(result.status,'completed')
+    assert.equal(result.action?.state,'completed')
+    assert.equal(result.action?.preview.totalMinor,'50000000')
+    assert.equal(result.action?.preview.paymentMinor,'20000000')
+    assert.equal(result.action?.preview.outstandingMinor,'30000000')
+    const invoice=result.action?.links.find(link=>link.kind==='invoice')
+    const payment=result.action?.links.find(link=>link.kind==='payment')
+    assert.ok(invoice)
+    assert.ok(payment)
+    assert.equal(f.trade.getInvoice({...f.scope,invoiceId:invoice.id}).outstandingMinor,'30000000')
+    assert.equal(f.trade.getPayment({...f.scope,paymentId:payment.id}).unallocatedMinor,'0')
+    assert.equal(f.db.prepare('SELECT count(*) AS n FROM journal_entries').get()?.['n'],2)
+    assert.equal(f.accounting.trialBalance(f.scope).totalDebitMinor,f.accounting.trialBalance(f.scope).totalCreditMinor)
   },mock.fetcher)
 })
