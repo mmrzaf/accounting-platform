@@ -37,6 +37,8 @@ test('complete backup captures DB and attachments, verifies, restores, refuses o
       assert.deepEqual(createDocumentService(copy, restoredBlobs).read({ ...scope, attachmentId: attachment.id }).data, input)
     } finally { copy.close() }
     await assert.rejects(() => restoreBackup(backup.path, restoredDb, join(dir, 'another-attachments')), /already exists/u)
+    await assert.rejects(() => restoreBackup(backup.path, join(backup.path, 'bad.sqlite'), join(dir, 'outside-attachments')), /overlap/u)
+    await assert.rejects(() => restoreBackup(backup.path, join(dir, 'nested', 'database.sqlite'), join(dir, 'nested')), /overlap/u)
     assert.deepEqual(await readdir(join(dir, 'backups')), [basename(backup.path)])
     db.close()
   } finally { await rm(dir, { recursive: true, force: true }) }
