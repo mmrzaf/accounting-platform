@@ -47,9 +47,15 @@ export function createApplication(options: ApplicationOptions) {
     const server = createNodeHttpServer({ origin: options.publicOrigin, handler, readiness: () => {
       try { return db.prepare('SELECT 1').get() !== undefined } catch { return false }
     } })
+    let closed = false
     return { server, close: async () => {
-      await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()))
-      db.close()
+      if (closed) return
+      closed = true
+      try {
+        if (server.listening) {
+          await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()))
+        }
+      } finally { db.close() }
     } }
   } catch (error) { db.close(); throw error }
 }

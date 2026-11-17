@@ -33,8 +33,8 @@ export function parseConfig(env: NodeJS.ProcessEnv = process.env, cwd: string = 
     throw new ConfigurationError('APP_PORT must be an integer between 1 and 65535')
   }
   const bindHost = env['APP_BIND_HOST'] ?? '127.0.0.1'
-  if (!['127.0.0.1', 'localhost', '::1', '0.0.0.0', '::'].includes(bindHost)) {
-    throw new ConfigurationError('APP_BIND_HOST must be an explicit supported bind address')
+  if (!['127.0.0.1', 'localhost', '::1'].includes(bindHost)) {
+    throw new ConfigurationError('APP_BIND_HOST must be a loopback address (127.0.0.1, localhost, or ::1)')
   }
   const dbPath = resolve(cwd, env['APP_DB_PATH'] ?? 'var/data/accounting.sqlite')
   const backupDir = resolve(cwd, env['APP_BACKUP_DIR'] ?? 'var/backups')

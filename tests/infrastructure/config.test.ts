@@ -21,7 +21,7 @@ test('config defaults are loopback-only and paths are resolved', () => {
 test('invalid ports and bind addresses fail closed', () => {
   for (const port of ['0', '65536', '-1', 'abc', '1.2']) assert.throws(() => parseConfig({ APP_PORT: port }), ConfigurationError)
   assert.throws(() => parseConfig({ APP_BIND_HOST: 'evil.example' }), ConfigurationError)
-  assert.equal(parseConfig({ APP_BIND_HOST: '0.0.0.0' }).bindHost, '0.0.0.0')
+  assert.throws(() => parseConfig({ APP_BIND_HOST: '0.0.0.0' }), ConfigurationError)
 })
 
 test('logging allows known safe fields and never serializes secrets or opaque payloads', () => {
