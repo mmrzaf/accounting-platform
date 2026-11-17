@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { mkdir, access } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
 import { createInterface } from 'node:readline'
 import { Writable } from 'node:stream'
 import { createIdentityService } from '../src/modules/identity/service.ts'
@@ -79,8 +80,28 @@ async function main(argv: string[]) {
   if (command === 'doctor') {
     let dbExists = true
     try { await access(dbPath) } catch { dbExists = false }
-    const checks = { runtime, nodeSupported: true, databaseExists: dbExists, bindHost: config.bindHost, port: config.port }
-    emit({ ok: true, checks, warnings: dbExists ? [] : ['Database has not been initialized. Run db:migrate.'] }, flags['json'])
+    const warnings: string[] = []
+    const problems: string[] = []
+    const browserBuilt = existsSync(resolve(root, 'web/dist/index.html'))
+    if (!browserBuilt) warnings.push('Browser production bundle missing. Install web dependencies and run web:build before opening the browser UI.')
+    let databaseIntegrity: boolean | null = null
+    let pendingMigrations: number | null = null
+    if (!dbExists) warnings.push('Database has not been initialized. Run db:migrate.')
+    else {
+      try {
+        const inspection = openDatabase(dbPath, { create: false })
+        try {
+          databaseIntegrity = checkDatabase(inspection).ok
+          pendingMigrations = migrationStatus(inspection, migrations).pending.length
+          if (!databaseIntegrity) problems.push('Database integrity or foreign-key check failed')
+          if (pendingMigrations) problems.push(`${pendingMigrations} pending migrations; run db:migrate after taking a complete backup`)
+        } finally { inspection.close() }
+      } catch { problems.push('Unable to inspect database and migration state') }
+    }
+    const checks = { runtime, nodeSupported: true, databaseExists: dbExists, databaseIntegrity,
+      pendingMigrations, browserBuilt, bindHost: config.bindHost, port: config.port }
+    emit({ ok: problems.length === 0, checks, warnings, problems }, flags['json'])
+    if (problems.length) process.exitCode = 1
     return
   }
   if (command === 'server:start') {
@@ -98,7 +119,9 @@ async function main(argv: string[]) {
       await application.close()
       throw error
     }
-    emit({ ok: true, publicOrigin: config.publicOrigin, bindHost: config.bindHost, port: config.port, aiEnabled: !!key }, flags['json'])
+    const browserBuilt = existsSync(resolve(root, 'web/dist/index.html'))
+    emit({ ok: true, publicOrigin: config.publicOrigin, bindHost: config.bindHost, port: config.port, aiEnabled: !!key,
+      browserBuilt, ...(browserBuilt ? {} : { warning: 'Browser UI is not built; API is available but / will not show the app' }) }, flags['json'])
     let stopping = false
     const shutdown = () => {
       if (stopping) return

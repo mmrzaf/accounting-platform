@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const required = [
-  'README.md', 'AGENTS.md', 'docs/decisions/decision-register.md',
+  'README.md', 'AGENTS.md', 'START-HERE.md', 'docs/decisions/decision-register.md',
   'docs/validation/implementation-status.md', 'docs/validation/release-gates.md', 'docs/operations/identity-bootstrap.md',
   'docs/accounting/accounting-core.md', 'docs/ai/autonomy.md',
 ];
@@ -39,7 +39,7 @@ function recurse(directory: string) {
 for (const filename of required) {
   if (!existsSync(join(root, filename))) failures.push(`Missing required artifact: ${filename}`);
 }
-for (const filename of ['README.md', 'AGENTS.md']) {
+for (const filename of ['README.md', 'AGENTS.md', 'START-HERE.md']) {
   // Include top-level documentation without traversing node_modules or dist.
   const contents = readFileSync(join(root, filename), 'utf8');
   checked++;

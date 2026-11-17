@@ -31,7 +31,9 @@
     "web:dev": "corepack pnpm --dir web dev",
     "web:build": "corepack pnpm --dir web build",
     "web:check": "corepack pnpm --dir web check",
-    "verify:all": "npm run verify && npm run web:build"
+    "verify:all": "npm run verify && npm run web:check && npm run web:build",
+    "handoff:check": "node --experimental-strip-types scripts/handoff-check.ts",
+    "handoff:release": "node --experimental-strip-types scripts/handoff-check.ts --release --strict"
   },
   "devDependencies": {
     "@types/node": "25.1.0",
