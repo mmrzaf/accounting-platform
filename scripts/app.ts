@@ -89,6 +89,8 @@ async function main(argv: string[]) {
     if (encodedKey && (!/^[A-Za-z0-9+/]{43}=$/u.test(encodedKey) || key?.byteLength !== 32))
       throw new Error('APP_AI_MASTER_KEY_BASE64 must be a base64-encoded 32-byte random key')
     const application = createApplication({ databasePath: dbPath, migrationDirectory: migrations, publicOrigin: config.publicOrigin,
+      attachmentDirectory: config.attachmentDir,
+      webDistDirectory: resolve(process.cwd(), 'web/dist'),
       ...(key ? { aiMasterKey: key } : {}) })
     try {
       await listen(application.server, config.bindHost, config.port)
