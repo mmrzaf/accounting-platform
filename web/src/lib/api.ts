@@ -13,16 +13,17 @@ export class ApiError extends Error {
 }
 export interface AuthSession {
   user: { id: string; username: string; displayName: string }
-  organization: { id: string; slug: string; name: string }
+  company: { id: string; name: string }
   csrfToken: string
 }
-export interface Company { id: string; code: string; name: string; status: string }
-export interface Contact { id: string; displayName: string; code: string | null; status: string }
+export interface Company { id: string; name: string; status: string }
+export interface Contact { id: string; displayName: string; code: string | null; status: string; revision: number }
 export interface Account { id: string; code: string; name: string; category: 'asset'|'liability'|'equity'|'revenue'|'expense'; postable: boolean; active: boolean }
 export interface Book { company_id: string; base_currency: string; timezone: string }
 export interface Currency { code: string; name: string; decimals: number }
-export interface Invoice { id: string; kind: 'sale'|'purchase'; partyId: string; issuedOn: string; status: string; number: string|null; totalMinor: string; description: string; lines?: {id: string; description: string; quantityMilli: string; lineTotalMinor: string}[] }
-export interface Payment { id: string; kind: 'receipt'|'payment'; partyId: string; paidOn: string; amountMinor: string; status: string; description: string }
+export interface Invoice { id: string; kind: 'sale'|'purchase'; partyId: string; issuedOn: string; status: string; number: string|null; totalMinor: string; appliedMinor: string; creditedMinor: string; outstandingMinor: string; revision: number; description: string; lines: {id: string; description: string; quantityMilli: string; unitPriceMinor: string; lineTotalMinor: string; accountId: string; itemKind: 'service'|'non_stock'|'good'}[] }
+export interface Payment { id: string; bankAccountId: string; controlAccountId: string; kind: 'receipt'|'payment'; partyId: string; paidOn: string; amountMinor: string; number: string|null; allocatedMinor: string; unallocatedMinor: string; status: string; description: string; reference: string|null }
+export interface PostingDefaults { receivablesId: string; payablesId: string; revenueId: string; expenseId: string; cashId: string }
 export interface TrialBalance { baseCurrency: string; totalDebitMinor: string; totalCreditMinor: string; rows: { accountId: string; code: string; name: string; category: string; balanceDebitMinor: string; balanceCreditMinor: string }[] }
 export interface FinancialSummary { baseCurrency: string; assetsMinor: string; liabilitiesMinor: string; equityMinor: string; revenueMinor: string; expensesMinor: string; netIncomeMinor: string }
 export interface StockItem { id: string; sku: string; name: string; unit: string; status: string; quantityMilli: string }
@@ -42,13 +43,6 @@ export async function request<T>(path: string, csrf?: string, payload?: unknown,
   }
   return json as T
 }
-export function scoped(path: string, companyId: string, params: Record<string, string> = {}) {
-  const [pathname, query] = path.split('?', 2)
-  const search = new URLSearchParams(query ?? '')
-  search.set('companyId', companyId)
-  for (const [key, value] of Object.entries(params)) search.set(key, value)
-  return `${pathname}?${search}`
-}
 export const newRequestKey = () => crypto.randomUUID()
 
 // Convert localized digit input with exact bigint arithmetic. Never use floating-point amounts.
@@ -57,7 +51,7 @@ export function canonicalDigits(value: string) {
     .replace(/[٠-٩]/gu, digit => String(digit.charCodeAt(0) - 0x660))
 }
 export function majorToMinor(value: string, decimals: number): string {
-  const cleaned = canonicalDigits(value.trim()).replaceAll(',', '')
+  const cleaned = canonicalDigits(value.trim()).replaceAll(',', '').replaceAll('٬', '').replaceAll('٫', '.')
   if (!/^\d+(?:\.\d+)?$/u.test(cleaned)) throw Error('Enter a valid nonnegative amount')
   const [whole = '0', fraction = ''] = cleaned.split('.')
   if (fraction.length > decimals) throw Error(`Amount supports at most ${decimals} decimal places`)

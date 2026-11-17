@@ -1,14 +1,24 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useApplication } from '../app/context'
 import { Alert, Empty, Field, Page, Panel, Spinner, Submit } from '../components/ui'
-import { ApiError, type Account, type Book, type List, type Currency } from '../lib/api'
+import { ApiError, type Account, type Book, type List, type Currency, type PostingDefaults } from '../lib/api'
 import { languages } from '../lib/i18n'
 
+const emptyDefaults: PostingDefaults = {receivablesId:'',payablesId:'',revenueId:'',expenseId:'',cashId:''}
+const accountTypes: {key:keyof PostingDefaults; category:Account['category']; en:string; fa:string}[] = [
+  {key:'receivablesId',category:'asset',en:'Accounts receivable',fa:'حساب دریافتنی'},
+  {key:'payablesId',category:'liability',en:'Accounts payable',fa:'حساب پرداختنی'},
+  {key:'revenueId',category:'revenue',en:'Default sales revenue',fa:'درآمد پیش‌فرض فروش'},
+  {key:'expenseId',category:'expense',en:'Default purchase expense',fa:'هزینه پیش‌فرض خرید'},
+  {key:'cashId',category:'asset',en:'Default bank / cash account',fa:'بانک یا صندوق پیش‌فرض'},
+]
 export function Settings(){
-  const {call,companyId,locale}=useApplication()
+  const {call,locale}=useApplication()
   const [book,setBook]=useState<Book|null>(null)
   const [accounts,setAccounts]=useState<Account[]>([])
   const [currencies,setCurrencies]=useState<Currency[]>([])
+  const [defaults,setDefaults]=useState<PostingDefaults|null>(null)
+  const [defaultForm,setDefaultForm]=useState<PostingDefaults>(emptyDefaults)
   const [currency,setCurrency]=useState('IRR'),[decimals,setDecimals]=useState('0'),[timezone,setTimezone]=useState('Asia/Tehran')
   const [periodCode,setPeriodCode]=useState(''),[periodStart,setPeriodStart]=useState(''),[periodEnd,setPeriodEnd]=useState('')
   const [code,setCode]=useState(''),[name,setName]=useState(''),[category,setCategory]=useState<Account['category']>('asset')
@@ -17,15 +27,15 @@ export function Settings(){
   async function reload(){
     const bookResult=await call<Book>('/api/accounting/book').catch(error=>{if(error instanceof ApiError&&error.status===404)return null;throw error})
     setBook(bookResult)
-    if(bookResult){const [a,c]=await Promise.all([call<List<Account>>('/api/accounting/accounts'),call<List<Currency>>('/api/accounting/currencies')]);setAccounts(a.items);setCurrencies(c.items)}
+    if(bookResult){const [a,c,d]=await Promise.all([call<List<Account>>('/api/accounting/accounts'),call<List<Currency>>('/api/accounting/currencies'),call<PostingDefaults|null>('/api/accounting/posting-defaults')]);setAccounts(a.items);setCurrencies(c.items);setDefaults(d);setDefaultForm(d??emptyDefaults)}
   }
   useEffect(()=>{let active=true;setLoading(true);setError(null);setBook(null);setAccounts([])
     void call<Book>('/api/accounting/book').catch(error=>{if(error instanceof ApiError&&error.status===404)return null;throw error}).then(async b=>{
       if(!active)return;setBook(b)
-      if(b){const [a,c]=await Promise.all([call<List<Account>>('/api/accounting/accounts'),call<List<Currency>>('/api/accounting/currencies')]);if(active){setAccounts(a.items);setCurrencies(c.items)}}
+      if(b){const [a,c,d]=await Promise.all([call<List<Account>>('/api/accounting/accounts'),call<List<Currency>>('/api/accounting/currencies'),call<PostingDefaults|null>('/api/accounting/posting-defaults')]);if(active){setAccounts(a.items);setCurrencies(c.items);setDefaults(d);setDefaultForm(d??emptyDefaults)}}
     }).catch(e=>{if(active)setError(e instanceof Error?e.message:String(e))}).finally(()=>{if(active)setLoading(false)})
     return()=>{active=false}
-  },[companyId,call])
+  },[call])
   const execute=async (operation:()=>Promise<unknown>)=>{
     setBusy(true);setError(null);setNotice(null)
     try{await operation();await reload();setNotice(languages[locale].success)}
@@ -34,6 +44,7 @@ export function Settings(){
   function setup(e:FormEvent<HTMLFormElement>){e.preventDefault();void execute(()=>call('/api/accounting/book',{baseCurrency:currency,baseDecimals:Number(decimals),timezone}))}
   function addAccount(e:FormEvent<HTMLFormElement>){e.preventDefault();void execute(async()=>{await call('/api/accounting/accounts',{code,name,category});setCode('');setName('')})}
   function addPeriod(e:FormEvent<HTMLFormElement>){e.preventDefault();void execute(async()=>{await call('/api/accounting/periods',{code:periodCode,startsOn:periodStart,endsOn:periodEnd});setPeriodCode('')})}
+  function saveDefaults(e:FormEvent<HTMLFormElement>){e.preventDefault();void execute(()=>call('/api/accounting/posting-defaults',defaultForm))}
   return <Page title={languages[locale].settings} description={locale==='fa'?'پیکربندی حسابداری هر شرکت مستقل است.':'Each company maintains independent accounting configuration.'}>
     <Alert text={error}/><Alert text={notice} type="success"/>{loading&&<Spinner/>}
     {!loading&&!book&&<Panel title={languages[locale].setup}><form className="form-grid" onSubmit={setup}>
@@ -61,6 +72,18 @@ export function Settings(){
         </select>}</Field>
         <div className="form-actions"><Submit busy={busy}>{languages[locale].create}</Submit></div>
       </form></Panel>
+      <Panel title={locale==='fa'?'حساب‌های پیش‌فرض عملیات':'Default posting accounts'}>
+        <p className="muted">{locale==='fa'?'این حساب‌ها یک‌بار تنظیم می‌شوند؛ هنگام ثبت فاکتور و دریافت/پرداخت نیازی به انتخاب حساب‌های بدهکار و بستانکار نیست.':'Configure these once. Invoices and payments then use validated defaults instead of asking for debit/credit accounts on every entry.'}</p>
+        {defaults&&<Alert text={locale==='fa'?'حساب‌های پیش‌فرض فعال هستند.':'Posting defaults are configured.'} type="success"/>}
+        <form className="form-grid" onSubmit={saveDefaults}>
+          {accountTypes.map(field=><Field key={field.key} label={locale==='fa'?field.fa:field.en}>{id=><select id={id} required value={defaultForm[field.key]} onChange={event=>setDefaultForm(current=>({...current,[field.key]:event.target.value}))}>
+            <option value="">{locale==='fa'?'انتخاب حساب':'Choose account'}</option>
+            {accounts.filter(a=>a.active&&a.postable&&a.category===field.category).map(a=><option key={a.id} value={a.id}>{a.code} · {a.name}</option>)}
+          </select>}</Field>)}
+          <div className="form-actions"><Submit busy={busy}>{locale==='fa'?'ذخیره حساب‌های پیش‌فرض':'Save posting defaults'}</Submit></div>
+        </form>
+        <p className="muted fine-print">{locale==='fa'?'حساب دریافتنی و بانک/صندوق باید متفاوت باشند. فقط حساب‌های فعال و قابل ثبت انتخاب می‌شوند.':'Receivables and bank/cash must be different active, postable accounts.'}</p>
+      </Panel>
       <Panel title={locale==='fa'?'سرفصل‌های حسابداری':'Chart of accounts'}>
         {accounts.length===0?<Empty/>:<div className="table-wrap"><table><thead><tr><th>{locale==='fa'?'کد':'Code'}</th><th>{languages[locale].name}</th><th>{locale==='fa'?'گروه':'Category'}</th></tr></thead><tbody>{accounts.map(a=><tr key={a.id}><td dir="ltr">{a.code}</td><td>{a.name}</td><td>{a.category}</td></tr>)}</tbody></table></div>}
       </Panel>
