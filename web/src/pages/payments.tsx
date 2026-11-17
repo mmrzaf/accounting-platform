@@ -1,5 +1,6 @@
+import { AskAssistant } from '../components/ask-assistant'
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Link } from '@tanstack/react-router'
+import { Link, useSearch } from '@tanstack/react-router'
 import { useApplication } from '../app/context'
 import { Alert, Empty, Field, Page, Panel, Spinner, Submit } from '../components/ui'
 import { ActionDialog, FilterTabs, SearchBox, SectionHeading, Status, SummaryValue } from '../components/workflow'
@@ -9,7 +10,8 @@ type Kind = 'receipt' | 'payment'
 type Filter = 'all' | 'draft' | 'posted'
 
 export function Payments() {
-  const { call, locale } = useApplication()
+  const { call, locale, setAssistantSelection } = useApplication()
+  const recordSearch=useSearch({from:'/payments'}).record
   const fa = locale === 'fa'
   const [kind, setKind] = useState<Kind>('receipt')
   const [filter, setFilter] = useState<Filter>('all')
@@ -76,7 +78,7 @@ export function Payments() {
     void reload().catch(e=>{if(active)setError(e instanceof Error?e.message:String(e))}).finally(()=>{if(active)setLoading(false)})
     return ()=>{active=false}
   },[reload])
-  useEffect(()=>{setFilter('all');setView('list');setSelectedId('');setInvoiceId('');setAllocationInvoice('')},[kind])
+  useEffect(()=>{if(!recordSearch){setFilter('all');setView('list');setSelectedId('');setInvoiceId('');setAllocationInvoice('')}},[kind,recordSearch])
   function startNew() {
     setPartyId('');setBankAccountId(defaults?.cashId??'');setDate(today());setAmount('');setDescription('');setReference('');setInvoiceId('')
     setRequestKey(newRequestKey());setError(null);setNotice(null);setView('new')
@@ -123,9 +125,19 @@ export function Payments() {
     } catch(cause){setError(cause instanceof Error?cause.message:String(cause));setConfirm(null)}
     finally{setBusy(false)}
   }
+  useEffect(()=>{
+    const recordId=selectedId||undefined
+    setAssistantSelection({page:'payments',...(recordId?{record:{type:'payment' as const,id:recordId}}:{})})
+    return ()=>setAssistantSelection(null)
+  },[selectedId,setAssistantSelection])
+  useEffect(()=>{if(!recordSearch)return;let active=true
+    void call<Payment>(`/api/business/payments/${recordSearch}`).then(record=>{if(active){setItems(previous=>previous.some(item=>item.id===record.id)?previous:[record,...previous]);setKind(record.kind);setSelectedId(record.id);setView('detail')}})
+      .catch(cause=>{if(active)setError(cause instanceof Error?cause.message:String(cause))})
+    return()=>{active=false}
+  },[call,recordSearch])
   return <Page title={kind==='receipt'?(fa?'دریافت‌ها':'Receipts'):(fa?'پرداخت‌ها':'Payments')}
     description={fa?'ثبت و تسویه دریافت‌ها و پرداخت‌های شرکت':'Record and settle money movements with fewer steps'}
-    actions={<button type="button" disabled={!book||!defaults||loading} onClick={startNew}>{kind==='receipt'?(fa?'دریافت جدید':'New receipt'):(fa?'پرداخت جدید':'New payment')}</button>}>
+    actions={<><AskAssistant prompt={fa?'در ثبت و تسویه دریافت‌ها یا پرداخت‌ها کمکم کن':'Help me record or settle a payment'}/><button type="button" disabled={!book||!defaults||loading} onClick={startNew}>{kind==='receipt'?(fa?'دریافت جدید':'New receipt'):(fa?'پرداخت جدید':'New payment')}</button></>}>
     <div className="workspace-switch"><FilterTabs label={fa?'نوع عملیات':'Type'} value={kind} onChange={setKind} options={[{value:'receipt',label:fa?'دریافت':'Receipts'},{value:'payment',label:fa?'پرداخت':'Payments'}]}/>
       {view!=='list'&&<button type="button" className="secondary small" onClick={()=>{setView('list');setError(null)}}>{fa?'بازگشت به فهرست':'Back to list'}</button>}</div>
     <Alert text={error}/><Alert text={notice} type="success"/>

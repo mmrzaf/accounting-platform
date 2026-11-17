@@ -5,6 +5,7 @@ import { languages } from '../lib/i18n'
 import { Login } from '../pages/login'
 import { Spinner } from '../components/ui'
 import { Icon, type IconName } from '../components/icons'
+import { AssistantWorkspace } from '../components/assistant-workspace'
 
 type NavItem = { path: '/' | '/contacts' | '/invoices' | '/payments' | '/ledger' | '/inventory' | '/assistant' | '/settings' | '/administration'; key: keyof typeof languages.en; icon: IconName }
 const primary: NavItem[] = [
@@ -58,7 +59,7 @@ function QuickNavigate({close}:{close:()=>void}) {
 }
 
 export function Shell() {
-  const {session,loading,loadError,locale,setLocale,logout} = useApplication()
+  const {session,loading,loadError,locale,setLocale,logout,assistantOpen,openAssistant,closeAssistant} = useApplication()
   const [logoutError,setLogoutError] = useState<string|null>(null)
   const [mobileOpen,setMobileOpen] = useState(false)
   const [quickOpen,setQuickOpen] = useState(false)
@@ -68,11 +69,11 @@ export function Shell() {
   useEffect(()=>{
     const keyHandler = (event:KeyboardEvent) => {
       if ((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k') {event.preventDefault();setQuickOpen(open=>!open)}
-      if (event.key==='Escape'){setQuickOpen(false);setMobileOpen(false)}
+      if (event.key==='Escape'){setQuickOpen(false);setMobileOpen(false);closeAssistant()}
     }
     window.addEventListener('keydown',keyHandler)
     return ()=>window.removeEventListener('keydown',keyHandler)
-  },[])
+  },[closeAssistant])
   useEffect(()=>{setMobileOpen(false)},[location.pathname])
   if (loading) return <main className="center"><Spinner/></main>
   if (loadError) return <main className="center"><div className="panel" role="alert"><p>{loadError}</p><button type="button" onClick={()=>window.location.reload()}>{t.retry}</button></div></main>
@@ -102,11 +103,17 @@ export function Shell() {
         <div className="topbar-actions">
           <button type="button" className="search-trigger" onClick={()=>setQuickOpen(true)} aria-label={locale==='fa'?'رفتن به بخش؛ کنترل کی':'Navigate sections; Control K'}><Icon name="search" size={17}/><span>{locale==='fa'?'رفتن به بخش…':'Go to…'}</span><kbd>⌘ K</kbd></button>
           <label className="language-control"><Icon name="globe" size={17}/><span className="sr-only">{t.language}</span><select aria-label={t.language} value={locale} onChange={event=>setLocale(event.target.value==='fa'?'fa':'en')}><option value="fa">فارسی</option><option value="en">English</option></select></label>
-          <Link to="/assistant" className="assistant-top-action"><Icon name="assistant" size={18}/><span>{t.assistant}</span></Link>
+          <button type="button" className="assistant-top-action" aria-haspopup="dialog" onClick={()=>openAssistant()}><Icon name="assistant" size={18}/><span>{t.assistant}</span></button>
         </div>
       </header>
       <main id="main-content" tabIndex={-1}><Outlet/></main>
     </div>
     {quickOpen&&<QuickNavigate close={()=>setQuickOpen(false)}/>}
+    {assistantOpen&&<div className="assistant-drawer-backdrop" onMouseDown={event=>{if(event.target===event.currentTarget)closeAssistant()}}>
+      <aside className="assistant-drawer" role="dialog" aria-modal="true" aria-label={locale==='fa'?'دستیار مالی':'Financial assistant'}>
+        <div className="assistant-drawer-top"><span>{t.assistant}</span><button type="button" className="icon-button" aria-label={locale==='fa'?'بستن':'Close'} onClick={closeAssistant}><Icon name="close"/></button></div>
+        <AssistantWorkspace compact onNavigate={closeAssistant}/>
+      </aside>
+    </div>}
   </div>
 }

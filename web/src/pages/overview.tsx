@@ -1,3 +1,4 @@
+import { AskAssistant } from '../components/ask-assistant'
 import { useEffect, useState } from 'react'
 import { useApplication } from '../app/context'
 import { Alert, Page, Panel, Spinner } from '../components/ui'
@@ -20,7 +21,8 @@ export function Overview() {
     return () => { active = false }
   }, [ call])
   const decimals = currencies.find(c => c.code === summary?.baseCurrency)?.decimals ?? 0
-  return <Page title={languages[locale].home} description={locale === 'fa' ? 'خلاصه‌ای از وضعیت مالی شرکت بر اساس دفتر کل ثبت‌شده.' : 'Company balances derived from posted journal entries.'}>
+  return <Page title={languages[locale].home} description={locale === 'fa' ? 'خلاصه‌ای از وضعیت مالی شرکت بر اساس دفتر کل ثبت‌شده.' : 'Company balances derived from posted journal entries.'}
+    actions={<AskAssistant prompt={locale==='fa'?'وضعیت مالی شرکت را با استناد به دفتر کل توضیح بده':'Explain our financial position using the general ledger'}/>}>
     {loading && <Spinner/>}<Alert text={error} type="info"/>
     {summary && <div className="metrics">
       {[

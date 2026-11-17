@@ -1,3 +1,4 @@
+import { AskAssistant } from '../components/ask-assistant'
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useApplication } from '../app/context'
 import { Alert, Empty, Field, Page, Panel, Spinner } from '../components/ui'
@@ -9,7 +10,7 @@ interface LedgerResult { accountCode: string; baseCurrency: string; rows: Ledger
 const pageSize = 100
 
 export function Ledger() {
-  const { call, locale } = useApplication()
+  const { call, locale, setAssistantSelection } = useApplication()
   const fa = locale === 'fa'
   const [trial,setTrial] = useState<TrialBalance|null>(null)
   const [accounts,setAccounts] = useState<Account[]>([])
@@ -60,8 +61,14 @@ export function Ledger() {
     setError(null);setOffset(0);setPeriod({from,through})
   }
   function chooseAccount(id:string) {setAccountId(id);setOffset(0)}
+  useEffect(()=>{
+    const recordId=accountId||undefined
+    setAssistantSelection({page:'ledger',...(recordId?{record:{type:'account' as const,id:recordId}}:{})})
+    return ()=>setAssistantSelection(null)
+  },[accountId||undefined,setAssistantSelection])
   return <Page title={fa?'حسابداری و دفتر کل':'Accounting & ledger'}
-    description={fa?'مانده حساب‌ها و گردش اسناد قطعی، محاسبه‌شده از دفتر کل':'Posted journal balances and account movements, derived from the general ledger'}>
+    description={fa?'مانده حساب‌ها و گردش اسناد قطعی، محاسبه‌شده از دفتر کل':'Posted journal balances and account movements, derived from the general ledger'}
+    actions={<AskAssistant prompt={fa?'مانده‌ها و تغییرات حساب‌های این صفحه را توضیح بده':'Explain account balances and changes in this ledger'}/>}>
     <Alert text={error}/>
     <Panel><SectionHeading>{fa?'بازه گزارش':'Reporting period'}</SectionHeading>
       <form className="report-filters" onSubmit={applyPeriod}>

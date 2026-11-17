@@ -14,11 +14,15 @@ import { Settings } from './pages/settings'
 import { Administration } from './pages/administration'
 import './styles.css'
 
+const recordSearch = (values:Record<string,unknown>):{record?:string} => {
+  const record=values['record']
+  return typeof record==='string'&&/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/iu.test(record)?{record}:{}
+}
 const root = createRootRoute({ component: Shell, notFoundComponent: () => <p>Page not found</p> })
 const index = createRoute({ getParentRoute: () => root, path: '/', component: Overview })
-const contacts = createRoute({ getParentRoute: () => root, path: '/contacts', component: Contacts })
-const invoices = createRoute({ getParentRoute: () => root, path: '/invoices', component: Invoices })
-const payments = createRoute({ getParentRoute: () => root, path: '/payments', component: Payments })
+const contacts = createRoute({ getParentRoute: () => root, path: '/contacts', validateSearch: recordSearch, component: Contacts })
+const invoices = createRoute({ getParentRoute: () => root, path: '/invoices', validateSearch: recordSearch, component: Invoices })
+const payments = createRoute({ getParentRoute: () => root, path: '/payments', validateSearch: recordSearch, component: Payments })
 const ledger = createRoute({ getParentRoute: () => root, path: '/ledger', component: Ledger })
 const inventory = createRoute({ getParentRoute: () => root, path: '/inventory', component: Inventory })
 const assistant = createRoute({ getParentRoute: () => root, path: '/assistant', component: Assistant })

@@ -1,5 +1,6 @@
+import { AskAssistant } from '../components/ask-assistant'
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Link } from '@tanstack/react-router'
+import { Link, useSearch } from '@tanstack/react-router'
 import { useApplication } from '../app/context'
 import { Alert, Empty, Field, Page, Panel, Spinner, Submit } from '../components/ui'
 import { ActionDialog, FilterTabs, SearchBox, SectionHeading, Status } from '../components/workflow'
@@ -8,7 +9,8 @@ import { languages } from '../lib/i18n'
 
 type Filter = 'active'|'all'|'archived'
 export function Contacts() {
-  const { call, locale } = useApplication()
+  const { call, locale, setAssistantSelection } = useApplication()
+  const recordSearch=useSearch({from:'/contacts'}).record
   const fa=locale==='fa'
   const [items,setItems]=useState<Contact[]>([])
   const [invoices,setInvoices]=useState<Invoice[]>([])
@@ -61,8 +63,18 @@ export function Contacts() {
     }catch(e){setError(e instanceof Error?e.message:String(e));setConfirmArchive(false)}finally{setBusy(false)}}
   const relatedInvoices=selectedNow?invoices.filter(i=>i.partyId===selectedNow.id):[]
   const relatedPayments=selectedNow?payments.filter(p=>p.partyId===selectedNow.id):[]
+  useEffect(()=>{
+    const recordId=selected?.id
+    setAssistantSelection({page:'contacts',...(recordId?{record:{type:'contact' as const,id:recordId}}:{})})
+    return ()=>setAssistantSelection(null)
+  },[selected?.id,setAssistantSelection])
+  useEffect(()=>{if(!recordSearch)return;let active=true
+    void call<Contact>(`/api/business/contacts/${recordSearch}`).then(record=>{if(active)setSelected(record)})
+      .catch(cause=>{if(active)setError(cause instanceof Error?cause.message:String(cause))})
+    return()=>{active=false}
+  },[call,recordSearch])
   return <Page title={languages[locale].contacts} description={fa?'پرونده اشخاص، مشتریان و تأمین‌کنندگان در یک فهرست':'One directory for customers, suppliers and other counterparties'}
-    actions={<button type="button" onClick={startNew}>{fa?'شخص جدید':'New contact'}</button>}>
+    actions={<><AskAssistant prompt={fa?'در پیدا کردن یا ایجاد طرف حساب کمکم کن':'Help me find or add a contact'}/><button type="button" onClick={startNew}>{fa?'شخص جدید':'New contact'}</button></>}>
     <Alert text={error}/><Alert text={notice} type="success"/>
     <div className="master-detail">
       <Panel><SectionHeading>{fa?'فهرست اشخاص':'Directory'}</SectionHeading>

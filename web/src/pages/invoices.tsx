@@ -1,5 +1,6 @@
+import { AskAssistant } from '../components/ask-assistant'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from '@tanstack/react-router'
+import { Link, useSearch } from '@tanstack/react-router'
 import { useApplication } from '../app/context'
 import { Alert, Empty, Field, Page, Panel, Spinner, Submit } from '../components/ui'
 import { ActionDialog, FilterTabs, SearchBox, SectionHeading, Status, SummaryValue } from '../components/workflow'
@@ -15,7 +16,8 @@ function priceDecimals(book: Book | null, currencies: Currency[]) {
 }
 
 export function Invoices() {
-  const { call, locale } = useApplication()
+  const { call, locale, setAssistantSelection } = useApplication()
+  const recordSearch=useSearch({from:'/invoices'}).record
   const fa = locale === 'fa'
   const formRef = useRef<HTMLFormElement>(null)
   const [kind, setKind] = useState<Kind>('sale')
@@ -66,7 +68,7 @@ export function Invoices() {
       .finally(()=>{if(current)setLoading(false)})
     return ()=>{current=false}
   },[reload])
-  useEffect(()=>{setView('list');setEditing(null);setDetail(null);setFilter('all')},[kind])
+  useEffect(()=>{if(!recordSearch){setView('list');setEditing(null);setDetail(null);setFilter('all')}},[kind,recordSearch])
 
   const visible = items.filter(invoice => (filter==='all'||invoice.status===filter) &&
     `${invoice.number??''} ${invoice.description} ${nameFor(invoice.partyId)}`.toLocaleLowerCase().includes(search.toLocaleLowerCase()))
@@ -120,8 +122,18 @@ export function Invoices() {
     finally {setBusy(false)}
   }
   const heading = kind==='sale'?(fa?'فاکتورهای فروش':'Sales invoices'):(fa?'فاکتورهای خرید':'Purchase invoices')
+  useEffect(()=>{
+    const recordId=detail?.id
+    setAssistantSelection({page:'invoices',...(recordId?{record:{type:'invoice' as const,id:recordId}}:{})})
+    return ()=>setAssistantSelection(null)
+  },[detail?.id,setAssistantSelection])
+  useEffect(()=>{if(!recordSearch)return;let active=true
+    void call<Invoice>(`/api/business/invoices/${recordSearch}`).then(record=>{if(active){setKind(record.kind);setDetail(record);setView('detail')}})
+      .catch(cause=>{if(active)setError(cause instanceof Error?cause.message:String(cause))})
+    return()=>{active=false}
+  },[call,recordSearch])
   return <Page title={heading} description={fa?'ثبت، بررسی و پیگیری فاکتورها و مانده‌های تسویه‌نشده':'Create, review, post and track invoices and outstanding balances'}
-    actions={<button onClick={beginNew} disabled={!book||!defaults||loading}>{fa?'فاکتور جدید':'New invoice'}</button>}>
+    actions={<><AskAssistant prompt={fa?'در ثبت یا بررسی فاکتورهای این صفحه کمکم کن':'Help me with invoices on this page'}/><button onClick={beginNew} disabled={!book||!defaults||loading}>{fa?'فاکتور جدید':'New invoice'}</button></>}>
     <div className="workspace-switch"><FilterTabs label={fa?'نوع فاکتور':'Invoice type'} value={kind} onChange={setKind} options={[{value:'sale',label:fa?'فروش':'Sales'},{value:'purchase',label:fa?'خرید':'Purchases'}]}/>
       {view!=='list'&&<button className="secondary small" type="button" onClick={()=>{setView('list');setError(null)}}>{fa?'بازگشت به فهرست':'Back to list'}</button>}</div>
     <Alert text={error}/><Alert text={notice} type="success"/>
