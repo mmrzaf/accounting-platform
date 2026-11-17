@@ -13,6 +13,7 @@ import { decodeArgs, json, required, sha } from './validation.ts'
 import { buildActionPreview, businessLinks } from './presentation.ts'
 import type { ActionPreview } from './presentation.ts'
 import { resolveAssistantContext } from './context.ts'
+import { recoverAiWork } from './recovery.ts'
 import type { AssistantContext } from './context.ts'
 
 interface ProviderRow { base_url:string; model:string; encrypted_api_key:string; supports_tools:number; enabled:number }
@@ -62,6 +63,7 @@ export function createAiService(db:DatabaseSync, options:{
   const fetcher=options.fetcher??fetch
   const now=()=>clock().toISOString()
   const time=()=>clock().getTime()
+  const recover=(companyId:string,userId:string)=>recoverAiWork({db,identity,companyId,userId,clock})
   const actorFor=(input:CompanyAiInput,permission:'ai.use'|'ai.policy'|'ai.execute')=>
     identity.requireActor(input.sessionToken,permission,input.companyId)
   const provider=(companyId:string)=>rowAs<ProviderRow>(db.prepare('SELECT * FROM ai_provider_configs WHERE company_id=?').get(companyId))
@@ -119,6 +121,7 @@ export function createAiService(db:DatabaseSync, options:{
   }
   function listConversations(input:CompanyAiInput&{limit?:number}){
     const actor=actorFor(input,'ai.use')
+    recover(actor.companyId,actor.userId)
     const limit=input.limit??30
     if(!Number.isInteger(limit)||limit<1||limit>100)return aiError('INVALID_INPUT','Invalid conversation limit')
     return rowsAs<ConversationRow>(db.prepare(`SELECT * FROM ai_conversations WHERE company_id=? AND user_id=? AND archived=0
@@ -126,6 +129,8 @@ export function createAiService(db:DatabaseSync, options:{
       .map(row=>({id:row.id,title:row.title,createdAt:row.created_at,updatedAt:row.updated_at}))
   }
   function archiveConversation(input:CompanyAiInput&{conversationId:string}){
+    const actor=actorFor(input,'ai.use')
+    recover(actor.companyId,actor.userId)
     const row=ownedConversation(input,input.conversationId)
     return transaction(db,()=>{
       const pending=db.prepare(`SELECT 1 FROM ai_turns WHERE conversation_id=? AND status IN ('processing','awaiting_approval') LIMIT 1`).get(row.id)
@@ -141,6 +146,7 @@ export function createAiService(db:DatabaseSync, options:{
   }
   function getTurn(input:CompanyAiInput&{turnId:string}){
     const actor=actorFor(input,'ai.use')
+    recover(actor.companyId,actor.userId)
     const row=rowAs<TurnRow>(db.prepare('SELECT * FROM ai_turns WHERE company_id=? AND user_id=? AND id=?')
       .get(actor.companyId,actor.userId,validId(input.turnId)))
     if(!row)return aiError('INVALID_STATE','AI turn not found')
@@ -152,15 +158,18 @@ export function createAiService(db:DatabaseSync, options:{
   }
   function listTurns(input:CompanyAiInput&{limit?:number}){
     const actor=actorFor(input,'ai.use'),limit=input.limit??25
+    recover(actor.companyId,actor.userId)
     if(!Number.isInteger(limit)||limit<1||limit>100)return aiError('INVALID_INPUT','Invalid turn limit')
     return rowsAs<Pick<TurnRow,'id'|'conversation_id'|'status'|'reply'|'created_at'>>(db.prepare(`SELECT id,conversation_id,status,reply,created_at
       FROM ai_turns WHERE company_id=? AND user_id=? ORDER BY created_at DESC,id DESC LIMIT ?`)
       .all(actor.companyId,actor.userId,limit))
   }
   function getConversation(input:CompanyAiInput&{conversationId:string}){
+    const actor=actorFor(input,'ai.use')
+    recover(actor.companyId,actor.userId)
     const row=ownedConversation(input,input.conversationId)
     const turns=rowsAs<Pick<TurnRow,'id'>>(db.prepare(`SELECT id FROM ai_turns WHERE company_id=? AND user_id=? AND conversation_id=?
-      ORDER BY created_at,id LIMIT 100`).all(row.company_id,row.user_id,row.id))
+      ORDER BY created_at DESC,id DESC LIMIT 100`).all(row.company_id,row.user_id,row.id)).reverse()
     return {id:row.id,title:row.title,archived:!!row.archived,createdAt:row.created_at,updatedAt:row.updated_at,
       turns:turns.map(turn=>getTurn({...input,turnId:turn.id}))}
   }
@@ -226,6 +235,7 @@ export function createAiService(db:DatabaseSync, options:{
 
   async function runTurn(input:RunTurnInput){
     const actor=actorFor(input,'ai.use')
+    recover(actor.companyId,actor.userId)
     const message=required(input.message,'message',4000)
     const key=required(input.clientRequestId,'clientRequestId',128)
     const executionMode=input.executionMode??'review'
