@@ -17,11 +17,11 @@ Updated 2026-11-17. This is the **current** status document; milestone-by-milest
 
 | Area | Gap and consequence |
 |---|---|
-| Browser UX | No React/TanStack Start application, production build, navigation, accountant workflows, Persian/English interactive screens, or browser E2E/accessibility results |
+| Browser UX | React/TanStack Router source now includes core Persian/English screens, but **dependencies, typecheck, production build, E2E, Jalali picker and accessibility verification remain unfinished** |
 | Persistence integration | Drizzle is not integrated; SQL query results rely on a documented unchecked cast helper. Runtime schemas and typed projections are not complete |
-| HTTP surface | Inventory, tax configuration, contact CSV import, attachments, and credit-note capabilities are primarily service-level; not all have user-accessible HTTP routes |
+| HTTP surface | Core accounting setup, ledger, inventory, tax, CSV imports, credit notes and attachments now have authenticated HTTP endpoints; remaining editing/refund/reporting endpoints require product design |
 | Financial depth | No valued stock or COGS posting, full returns/refunds, bank reconciliation, automatic tax posting, full FX settlements and period-end revaluation, or audited year-close workflow |
-| AI product | No integrated conversation UI, live-provider acceptance, or atomic compound transaction commands; provider calls need operational security review |
+| AI product | Initial AI request and approval UI exists in source but its browser build and workflow remain unverified; live-provider acceptance and atomic compound transaction commands are missing; provider calls need operational security review |
 | Operational readiness | No production installer, automated backup scheduling/retention, production reverse-proxy verification, disaster-recovery drill, or measured RPO/RTO |
 | Cross-platform | Node 24 primary and Node 22/26 compatibility policy are configured but not certified by execution on all target OS/runtime combinations |
 | Regulatory compliance | Iranian financial and tax integrations are not established or verified; do not present the product as legally compliant |
@@ -38,6 +38,6 @@ Updated 2026-11-17. This is the **current** status document; milestone-by-milest
 
 ## Verification evidence and limits
 
-The preceding delivered baseline reported **100 passing tests on Linux/Node 22.16**. That figure applies **only to that earlier committed snapshot**. At the user's request, this cleanup was performed by source inspection **without running the application, TypeScript compiler, tests, build, or CI**. Some test expectations were updated to reflect removed commands and code; the modified code **must not be treated as verified** until `corepack pnpm verify` and the full runtime matrix pass. Do not interpret deletion of obsolete feasibility tests as an increase in test coverage.
+The previous static cleanup did not execute its modified suite. This revision re-ran the repository verification on Linux/Node 22.16 and recorded the results in the latest readiness review. The previous cleanup was static-only; this revision includes executable backend checks. The React client was only syntax-parsed because dependency installation was unavailable. Backend verification ran on Linux Node 22.16, but the React build and complete runtime matrix have not run. Do not treat the UI or this release as certified. Do not interpret deletion of obsolete feasibility tests as an increase in test coverage.
 
 The history contains earlier delivery commits and later focused cleanup commits under the requested Git author. The repository working tree should be clean in the delivered ZIP.

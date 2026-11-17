@@ -1,9 +1,9 @@
 {
   "name": "accounting-platform",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "private": true,
   "type": "module",
-  "description": "Strict TypeScript accounting services with operational HTTP and complete recovery foundations; framework UI pending",
+  "description": "Local-first TypeScript accounting backend with a React browser client and documented release gates",
   "packageManager": "pnpm@10.20.0",
   "engines": {
     "node": ">=22.16.0 <23 || >=24.0.0 <25 || >=26.0.0 <27"
@@ -14,7 +14,7 @@
     "check:docs": "node --experimental-strip-types scripts/check-docs.ts",
     "check:sources": "node --experimental-strip-types scripts/check-sources.ts",
     "check": "npm run check:types && npm run check:docs && npm run check:sources && npm run check:boundaries",
-    "test": "node --experimental-strip-types --test tests/infrastructure/*.test.ts tests/identity/*.test.ts tests/accounting/*.test.ts tests/trading/*.test.ts tests/ai/*.test.ts tests/server/*.test.ts",
+    "test": "node --experimental-strip-types --test tests/infrastructure/*.test.ts tests/identity/*.test.ts tests/accounting/*.test.ts tests/trading/*.test.ts tests/ai/*.test.ts tests/server/*.test.ts tests/web/*.test.ts",
     "verify": "npm run check && npm run build && npm run test",
     "setup": "node --experimental-strip-types scripts/app.ts setup",
     "app:doctor": "node --experimental-strip-types scripts/app.ts doctor",
@@ -27,7 +27,11 @@
     "app:serve": "node --experimental-strip-types scripts/app.ts server:start",
     "app:backup": "node --experimental-strip-types scripts/app.ts backup:create",
     "app:backup-verify": "node --experimental-strip-types scripts/app.ts backup:verify",
-    "app:restore": "node --experimental-strip-types scripts/app.ts backup:restore"
+    "app:restore": "node --experimental-strip-types scripts/app.ts backup:restore",
+    "web:dev": "corepack pnpm --dir web dev",
+    "web:build": "corepack pnpm --dir web build",
+    "web:check": "corepack pnpm --dir web check",
+    "verify:all": "npm run verify && npm run web:build"
   },
   "devDependencies": {
     "@types/node": "25.1.0",
