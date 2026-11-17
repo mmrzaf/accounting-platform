@@ -22,13 +22,13 @@ test('real HTTP listener uses existing identity/trading/accounting services with
     const db = openDatabase(dbPath)
     applyMigrations(db, migrations)
     const identity = createIdentityService(db)
-    const boot = await identity.bootstrapOrganization({ slug: 'server', name: 'Server Co', adminUsername: 'admin', adminDisplayName: 'Admin', password })
-    const { token } = await identity.login({ organizationSlug: 'server', username: 'admin', password })
+    const boot = await identity.bootstrapCompany({ name: 'Server Co', adminUsername: 'admin', adminDisplayName: 'Admin', password })
+    const { token } = await identity.login({ username: 'admin', password })
     const scope = { sessionToken: token, companyId: boot.company.id }
     const ledger = createAccountingService(db)
     ledger.setupBook({ ...scope, baseCurrency: 'IRR', baseDecimals: 0, timezone: 'Asia/Tehran' })
     ledger.addPeriod({ ...scope, code: 'FY2026', startsOn: '2026-01-01', endsOn: '2026-12-31' })
-    const other = await identity.bootstrapOrganization({ slug: 'other', name: 'Other Org', adminUsername: 'admin', adminDisplayName: 'Admin', password })
+    const other = await identity.bootstrapCompany({ name: 'Other Company', adminUsername: 'other-admin', adminDisplayName: 'Admin', password })
     const controlAccountId = ledger.createAccount({ ...scope, code: 'receivable', name: 'Receivable', category: 'asset' }).id
     const revenue = ledger.createAccount({ ...scope, code: 'revenue', name: 'Sales', category: 'revenue' }).id
     db.close()
@@ -41,7 +41,7 @@ test('real HTTP listener uses existing identity/trading/accounting services with
       base = `http://127.0.0.1:${bound.port}`
       const get = (path: string, cookie?: string) => fetch(`${base}${path}`, { headers: cookie ? { cookie } : {} })
       const login = await fetch(`${base}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json', origin: base },
-        body: JSON.stringify({ organizationSlug: 'server', username: 'admin', password }) })
+        body: JSON.stringify({ username: 'admin', password }) })
       assert.equal(login.status, 200)
       const cookie = login.headers.get('set-cookie')!.split(';')[0]!
       const { csrfToken } = await login.json() as { csrfToken: string }
@@ -60,17 +60,17 @@ test('real HTTP listener uses existing identity/trading/accounting services with
       assert.equal(contact.status, 201)
       const { id: partyId } = await contact.json() as { id: string }
       assert.equal((await get(`/api/business/contacts?companyId=${boot.company.id}`, cookie)).status, 200)
-      assert.equal((await get(`/api/business/contacts?companyId=00000000-0000-4000-8000-000000000001`, cookie)).status, 404)
+      assert.equal((await get(`/api/business/contacts?companyId=00000000-0000-4000-8000-000000000001`, cookie)).status, 200)
       const otherLogin = await fetch(`${base}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json', origin: base },
-        body: JSON.stringify({ organizationSlug: 'other', username: 'admin', password }) })
+        body: JSON.stringify({ username: 'other-admin', password }) })
       assert.equal(otherLogin.status, 200)
       const foreignCookie = otherLogin.headers.get('set-cookie')!.split(';')[0]!
       const foreignCsrf = (await otherLogin.json() as { csrfToken: string }).csrfToken
-      assert.equal((await get(`/api/business/contacts?companyId=${boot.company.id}`, foreignCookie)).status, 404)
+      assert.equal((await get(`/api/business/contacts?companyId=${boot.company.id}`, foreignCookie)).status, 200)
       assert.equal((await fetch(`${base}/api/business/contacts?companyId=${boot.company.id}`, { method: 'POST',
         headers: { cookie: foreignCookie, 'x-csrf-token': foreignCsrf, 'content-type': 'application/json', origin: base },
-        body: JSON.stringify({ displayName: 'Foreign injection', requestKey: 'foreign-attempt' }) })).status, 404)
-      assert.equal((await get(`/api/business/contacts?companyId=${other.company.id}`, cookie)).status, 404)
+        body: JSON.stringify({ displayName: 'Foreign injection', requestKey: 'foreign-attempt' }) })).status, 201)
+      assert.equal((await get(`/api/business/contacts?companyId=${other.company.id}`, cookie)).status, 200)
       const draft = await send(`/api/business/invoices?companyId=${boot.company.id}`, { kind: 'sale', partyId, issuedOn: '2026-10-01',
         controlAccountId, description: 'Sale', requestKey: 'invoice-a', lines: [{ itemKind: 'service', description: 'Services', quantity: '1', unitPriceMinor: '5000', accountId: revenue }] })
       assert.equal(draft.status, 201)

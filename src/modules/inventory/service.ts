@@ -17,20 +17,21 @@ export function createInventoryService(db: DatabaseSync, { clock = () => new Dat
     const sku = key(input.sku, 'SKU'), name = text(input.name, 'Item name'), unit = text(input.unit, 'Item unit', 24)
     return transaction(db, () => {
       const actor = identity.requireActor(input.sessionToken, 'inventory.manage', input.companyId)
-      const prior = rowAs<Item>(db.prepare('SELECT id,sku,name,unit,status FROM stock_items WHERE organization_id=? AND company_id=? AND sku=?').get(actor.organizationId, input.companyId, sku))
+      const prior = rowAs<Item>(db.prepare('SELECT id,sku,name,unit,status FROM stock_items WHERE company_id=? AND sku=?').get(actor.companyId, sku))
       if (prior) {
         if (prior.name !== name || prior.unit !== unit) return conflict('SKU already exists with different details')
         return { ...show(prior), replayed: true }
       }
       const id = randomUUID()
-      db.prepare('INSERT INTO stock_items(id,organization_id,company_id,sku,name,unit) VALUES(?,?,?,?,?,?)').run(id, actor.organizationId, input.companyId, sku, name, unit)
-      identity.audit({ organizationId: actor.organizationId, companyId: input.companyId, actorId: actor.userId, action: 'inventory.item.create', subjectType: 'stock_item', subjectId: id })
+      db.prepare('INSERT INTO stock_items(id,company_id,sku,name,unit) VALUES(?,?,?,?,?)').run(id, input.companyId, sku, name, unit)
+      identity.audit({ companyId: input.companyId, actorId: actor.userId, action: 'inventory.item.create', subjectType: 'stock_item', subjectId: id })
       return { id, sku, name, unit, status: 'active' as const, replayed: false }
     })
   }
-  function load(actorOrg: string, companyId: string, itemId: string) {
-    return rowAs<Item>(db.prepare('SELECT id,sku,name,unit,status FROM stock_items WHERE organization_id=? AND company_id=? AND id=?')
-      .get(actorOrg, companyId, uuid(itemId, 'itemId'))) ?? missing()
+  function load(actorCompanyId: string, companyId: string, itemId: string) {
+    if (actorCompanyId !== companyId) return missing()
+    return rowAs<Item>(db.prepare('SELECT id,sku,name,unit,status FROM stock_items WHERE company_id=? AND id=?')
+      .get(actorCompanyId, uuid(itemId, 'itemId'))) ?? missing()
   }
   function balance(itemId: string) {
     const stmt = db.prepare(`SELECT bigint_total(CASE WHEN direction='in' THEN quantity_milli ELSE -quantity_milli END) AS qty FROM stock_movements WHERE item_id=?`)
@@ -38,24 +39,24 @@ export function createInventoryService(db: DatabaseSync, { clock = () => new Dat
   }
   function getItem(input: CompanyAction & { itemId: string }) {
     const actor = identity.requireActor(input.sessionToken, 'inventory.read', input.companyId)
-    const row = load(actor.organizationId, input.companyId, input.itemId)
+    const row = load(actor.companyId, input.companyId, input.itemId)
     return { ...show(row), quantityMilli: balance(row.id).toString() }
   }
   function listItems(input: CompanyAction) {
     const actor = identity.requireActor(input.sessionToken, 'inventory.read', input.companyId)
-    const rows = rowsAs<Item>(db.prepare('SELECT id,sku,name,unit,status FROM stock_items WHERE organization_id=? AND company_id=? ORDER BY sku LIMIT 1000')
-      .all(actor.organizationId, input.companyId))
+    const rows = rowsAs<Item>(db.prepare('SELECT id,sku,name,unit,status FROM stock_items WHERE company_id=? ORDER BY sku LIMIT 1000')
+      .all(actor.companyId))
     return rows.map(row => ({ ...show(row), quantityMilli: balance(row.id).toString() }))
   }
   function setItemStatus(input: CompanyAction & { itemId: string; status: 'active' | 'archived' }) {
     if (input.status !== 'active' && input.status !== 'archived') return invalid('Invalid item status')
     return transaction(db, () => {
       const actor = identity.requireActor(input.sessionToken, 'inventory.manage', input.companyId)
-      const row = load(actor.organizationId, input.companyId, input.itemId)
+      const row = load(actor.companyId, input.companyId, input.itemId)
       if (row.status === input.status) return { ...show(row), changed: false }
       if (input.status === 'archived' && balance(row.id) !== 0n) return conflict('Cannot archive an item with remaining stock')
       db.prepare('UPDATE stock_items SET status=? WHERE id=?').run(input.status, row.id)
-      identity.audit({ organizationId: actor.organizationId, companyId: input.companyId, actorId: actor.userId, action: 'inventory.item.status', subjectType: 'stock_item', subjectId: row.id, details: { status: input.status } })
+      identity.audit({ companyId: input.companyId, actorId: actor.userId, action: 'inventory.item.status', subjectType: 'stock_item', subjectId: row.id, details: { status: input.status } })
       return { ...show(row), status: input.status, changed: true }
     })
   }
@@ -67,12 +68,12 @@ export function createInventoryService(db: DatabaseSync, { clock = () => new Dat
     return transaction(db, () => {
       const actor = identity.requireActor(input.sessionToken, 'inventory.manage', input.companyId)
       const old = rowAs<Movement>(db.prepare(`SELECT id,item_id,direction,happened_on,CAST(quantity_milli AS TEXT) AS quantity_milli,note,fingerprint
-        FROM stock_movements WHERE organization_id=? AND company_id=? AND request_key=?`).get(actor.organizationId, input.companyId, requestKey))
+        FROM stock_movements WHERE company_id=? AND request_key=?`).get(actor.companyId, requestKey))
       if (old) {
         if (old.fingerprint !== fingerprint) return conflict('Stock request key reused with different details')
         return { id: old.id, itemId: old.item_id, direction: old.direction, quantityMilli: old.quantity_milli, on: old.happened_on, replayed: true }
       }
-      const item = load(actor.organizationId, input.companyId, itemId)
+      const item = load(actor.companyId, input.companyId, itemId)
       if (item.status !== 'active') return invalid('Cannot move stock for an archived item')
       const latest = rowAs<{ latest: string | null }>(db.prepare('SELECT max(happened_on) AS latest FROM stock_movements WHERE item_id=?').get(itemId))?.latest
       if (latest && on < latest) return conflict('Backdated stock movements are not permitted; use a correcting movement')
@@ -80,18 +81,17 @@ export function createInventoryService(db: DatabaseSync, { clock = () => new Dat
       if (direction === 'out' && current < quantity) return conflict('Insufficient stock')
       if (direction === 'in' && current + quantity > MAX_SQLITE_INTEGER) return invalid('Stock quantity exceeds storage range')
       const id = randomUUID()
-      db.prepare(`INSERT INTO stock_movements(id,organization_id,company_id,item_id,happened_on,direction,quantity_milli,request_key,fingerprint,note)
-        VALUES(?,?,?,?,?,?,?,?,?,?)`).run(id, actor.organizationId, input.companyId, itemId, on, direction, quantity, requestKey, fingerprint, note)
-      identity.audit({ organizationId: actor.organizationId, companyId: input.companyId, actorId: actor.userId, action: 'inventory.move', subjectType: 'stock_movement', subjectId: id, details: { direction, on } })
+      db.prepare(`INSERT INTO stock_movements(id,company_id,item_id,happened_on,direction,quantity_milli,request_key,fingerprint,note) VALUES(?,?,?,?,?,?,?,?,?)`).run(id, input.companyId, itemId, on, direction, quantity, requestKey, fingerprint, note)
+      identity.audit({ companyId: input.companyId, actorId: actor.userId, action: 'inventory.move', subjectType: 'stock_movement', subjectId: id, details: { direction, on } })
       return { id, itemId, direction, quantityMilli: quantity.toString(), on, replayed: false }
     })
   }
   function listMovements(input: CompanyAction & { itemId: string }) {
     const actor = identity.requireActor(input.sessionToken, 'inventory.read', input.companyId)
-    const item = load(actor.organizationId, input.companyId, input.itemId)
+    const item = load(actor.companyId, input.companyId, input.itemId)
     return rowsAs<Movement>(db.prepare(`SELECT id,item_id,direction,happened_on,CAST(quantity_milli AS TEXT) AS quantity_milli,note,fingerprint
-      FROM stock_movements WHERE organization_id=? AND company_id=? AND item_id=? ORDER BY happened_on,id LIMIT 1000`)
-      .all(actor.organizationId, input.companyId, item.id)).map(m => ({ id: m.id, direction: m.direction, on: m.happened_on, quantityMilli: m.quantity_milli, note: m.note }))
+      FROM stock_movements WHERE company_id=? AND item_id=? ORDER BY happened_on,id LIMIT 1000`)
+      .all(actor.companyId, item.id)).map(m => ({ id: m.id, direction: m.direction, on: m.happened_on, quantityMilli: m.quantity_milli, note: m.note }))
   }
   return Object.freeze({ createItem, getItem, listItems, setItemStatus, move, listMovements })
 }

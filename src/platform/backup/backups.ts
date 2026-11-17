@@ -14,7 +14,6 @@ export class BackupError extends Error {
 
 interface BlobRow {
   id: string
-  organization_id: string
   company_id: string
   byte_length: number
   sha256: string
@@ -49,7 +48,7 @@ async function regularFile(path: string, label: string) {
 async function originalBlobFile(root: string, relativePath: string) {
   const base = resolve(root)
   const segments = relativePath.split('/')
-  // Check each directory component: a symlinked organization/company folder must not
+  // Check each directory component: a symlinked company folder must not
   // make an attachment reference escape the operator-configured blob root.
   const baseMeta = await lstat(base)
   if (!baseMeta.isDirectory() || baseMeta.isSymbolicLink()) throw new BackupError('Attachment root must be a real directory')
@@ -62,13 +61,13 @@ async function originalBlobFile(root: string, relativePath: string) {
   const path = join(current, segments.at(-1)!)
   return { path, metadata: await regularFile(path, 'Attachment') }
 }
-function blobName(row: Pick<BlobRow, 'organization_id' | 'company_id' | 'id'>): string {
-  if (![row.organization_id, row.company_id, row.id].every(value => UUID.test(value))) throw new BackupError('Unsafe attachment identifier')
-  return `${row.organization_id}/${row.company_id}/${row.id}.blob`
+function blobName(row: Pick<BlobRow, 'company_id' | 'id'>): string {
+  if (![row.company_id, row.id].every(value => UUID.test(value))) throw new BackupError('Unsafe attachment identifier')
+  return `${row.company_id}/${row.id}.blob`
 }
 function blobRows(db: ReturnType<typeof openDatabase>): BlobRow[] {
-  return rowsAs<BlobRow>(db.prepare(`SELECT id, organization_id, company_id, byte_length, sha256
-    FROM document_attachments ORDER BY organization_id,company_id,id`).all())
+  return rowsAs<BlobRow>(db.prepare(`SELECT id, company_id, byte_length, sha256
+    FROM document_attachments ORDER BY company_id,id`).all())
 }
 function validateManifest(value: unknown): CompleteManifest {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new BackupError('Invalid complete backup manifest')
@@ -78,11 +77,11 @@ function validateManifest(value: unknown): CompleteManifest {
     throw new BackupError('Invalid complete backup manifest')
   let previous = ''
   for (const blob of m.blobs) {
-    if (!blob || typeof blob.relativePath !== 'string' || !/^[0-9a-f-]{36}\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.blob$/u.test(blob.relativePath) ||
+    if (!blob || typeof blob.relativePath !== 'string' || !/^[0-9a-f-]{36}\/[0-9a-f-]{36}\.blob$/u.test(blob.relativePath) ||
         !Number.isSafeInteger(blob.byteLength) || blob.byteLength < 1 || typeof blob.sha256 !== 'string' || !SHA.test(blob.sha256))
       throw new BackupError('Invalid attachment manifest entry')
-    const [org, company, file] = blob.relativePath.split('/')
-    if (!org || !company || !file || !UUID.test(org) || !UUID.test(company) || !UUID.test(file.slice(0, -5)))
+    const [company, file] = blob.relativePath.split('/')
+    if (!company || !file || !UUID.test(company) || !UUID.test(file.slice(0, -5)))
       throw new BackupError('Unsafe attachment path in manifest')
     if (previous && previous >= blob.relativePath) throw new BackupError('Backup attachment list must be unique and sorted')
     previous = blob.relativePath

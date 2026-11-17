@@ -12,7 +12,8 @@ const allocationSelect = `SELECT id,invoice_id,payment_id,CAST(amount_minor AS T
 export function createSettlementService(ctx: TradeContext) {
   const { db, authorize, audit, transaction } = ctx
   function allocation(actor: Actor, companyId: string, id: string): AllocationRow {
-    return rowAs<AllocationRow>(db.prepare(`${allocationSelect} WHERE organization_id=? AND company_id=? AND id=?`).get(actor.organizationId, companyId, uuid(id, 'allocationId'))) ?? missing()
+    if (actor.companyId !== companyId) return missing()
+    return rowAs<AllocationRow>(db.prepare(`${allocationSelect} WHERE company_id=? AND id=?`).get(actor.companyId, uuid(id, 'allocationId'))) ?? missing()
   }
   function visible(row: AllocationRow) {
     const reversal = rowAs<ReversalRow>(db.prepare('SELECT id,allocation_id,reason,request_key,fingerprint FROM allocation_reversals WHERE allocation_id=?').get(row.id))
@@ -20,9 +21,10 @@ export function createSettlementService(ctx: TradeContext) {
       reversed: !!reversal, reversalId: reversal?.id ?? null }
   }
   function source(actor: Actor, companyId: string, id: string, table: 'trade_invoices' | 'trade_payments'): SourceRow {
+    if (actor.companyId !== companyId) return missing()
     const amount = table === 'trade_invoices' ? 'total_minor' : 'amount_minor'
     return rowAs<SourceRow>(db.prepare(`SELECT id,kind,party_id,status,currency,control_account_id,CAST(${amount} AS TEXT) AS amount_minor
-      FROM ${table} WHERE organization_id=? AND company_id=? AND id=?`).get(actor.organizationId, companyId, uuid(id, 'sourceId'))) ?? missing()
+      FROM ${table} WHERE company_id=? AND id=?`).get(actor.companyId, uuid(id, 'sourceId'))) ?? missing()
   }
   function used(id: string, column: 'invoice_id' | 'payment_id'): bigint {
     const row = rowAs<{ amount: string }>(db.prepare(`SELECT bigint_total(a.amount_minor) AS amount FROM payment_allocations a
@@ -40,8 +42,8 @@ export function createSettlementService(ctx: TradeContext) {
     const fingerprint = hash({ invoiceId, paymentId, amount: amount.toString() })
     return transaction(db, () => {
       const actor = authorize(input, 'payments.manage')
-      const existing = rowAs<AllocationRow>(db.prepare(`${allocationSelect} WHERE organization_id=? AND company_id=? AND request_key=?`)
-        .get(actor.organizationId, input.companyId, requestKey))
+      const existing = rowAs<AllocationRow>(db.prepare(`${allocationSelect} WHERE company_id=? AND request_key=?`)
+        .get(actor.companyId, requestKey))
       if (existing) {
         if (existing.fingerprint !== fingerprint) return conflict('Allocation request key reused with different contents')
         return { ...visible(existing), replayed: true }
@@ -55,8 +57,7 @@ export function createSettlementService(ctx: TradeContext) {
       if (used(invoiceId, 'invoice_id') + credited(invoiceId) + amount > BigInt(invoice.amount_minor)) return conflict('Allocation exceeds invoice outstanding balance')
       if (used(paymentId, 'payment_id') + amount > BigInt(payment.amount_minor)) return conflict('Allocation exceeds unapplied payment amount')
       const id = randomUUID()
-      db.prepare(`INSERT INTO payment_allocations(id,organization_id,company_id,invoice_id,payment_id,amount_minor,request_key,fingerprint)
-        VALUES(?,?,?,?,?,?,?,?)`).run(id, actor.organizationId, input.companyId, invoiceId, paymentId, amount, requestKey, fingerprint)
+      db.prepare(`INSERT INTO payment_allocations(id,company_id,invoice_id,payment_id,amount_minor,request_key,fingerprint) VALUES(?,?,?,?,?,?,?)`).run(id, input.companyId, invoiceId, paymentId, amount, requestKey, fingerprint)
       audit(actor, input.companyId, 'trade.allocation.create', 'payment_allocation', id, { invoiceId, paymentId, amountMinor: amount.toString() })
       return { ...visible(allocation(actor, input.companyId, id)), replayed: false }
     })
@@ -66,8 +67,8 @@ export function createSettlementService(ctx: TradeContext) {
     const requestKey = key(input.requestKey, 'requestKey'), fingerprint = hash({ id, reason })
     return transaction(db, () => {
       const actor = authorize(input, 'payments.manage')
-      const existing = rowAs<ReversalRow>(db.prepare('SELECT id,allocation_id,reason,request_key,fingerprint FROM allocation_reversals WHERE organization_id=? AND company_id=? AND request_key=?')
-        .get(actor.organizationId, input.companyId, requestKey))
+      const existing = rowAs<ReversalRow>(db.prepare('SELECT id,allocation_id,reason,request_key,fingerprint FROM allocation_reversals WHERE company_id=? AND request_key=?')
+        .get(actor.companyId, requestKey))
       if (existing) {
         if (existing.fingerprint !== fingerprint) return conflict('Reversal request key reused with different contents')
         return { ...visible(allocation(actor, input.companyId, existing.allocation_id)), replayed: true }
@@ -76,8 +77,7 @@ export function createSettlementService(ctx: TradeContext) {
       const already = rowAs<ReversalRow>(db.prepare('SELECT id,allocation_id,reason,request_key,fingerprint FROM allocation_reversals WHERE allocation_id=?').get(record.id))
       if (already) return conflict('Allocation already reversed')
       const reversalId = randomUUID()
-      db.prepare(`INSERT INTO allocation_reversals(id,organization_id,company_id,allocation_id,reason,request_key,fingerprint)
-        VALUES(?,?,?,?,?,?,?)`).run(reversalId, actor.organizationId, input.companyId, record.id, reason, requestKey, fingerprint)
+      db.prepare(`INSERT INTO allocation_reversals(id,company_id,allocation_id,reason,request_key,fingerprint) VALUES(?,?,?,?,?,?)`).run(reversalId, input.companyId, record.id, reason, requestKey, fingerprint)
       audit(actor, input.companyId, 'trade.allocation.reverse', 'payment_allocation', record.id, { reason })
       return { ...visible(record), replayed: false }
     })
@@ -87,9 +87,9 @@ export function createSettlementService(ctx: TradeContext) {
     if (input.invoiceId === undefined && input.paymentId === undefined) return conflict('Specify invoiceId or paymentId')
     const invoiceId = input.invoiceId === undefined ? null : uuid(input.invoiceId, 'invoiceId')
     const paymentId = input.paymentId === undefined ? null : uuid(input.paymentId, 'paymentId')
-    return rowsAs<AllocationRow>(db.prepare(`${allocationSelect} WHERE organization_id=? AND company_id=?
+    return rowsAs<AllocationRow>(db.prepare(`${allocationSelect} WHERE company_id=?
       AND (? IS NULL OR invoice_id=?) AND (? IS NULL OR payment_id=?) ORDER BY rowid LIMIT 200`)
-      .all(actor.organizationId, input.companyId, invoiceId, invoiceId, paymentId, paymentId)).map(visible)
+      .all(actor.companyId, invoiceId, invoiceId, paymentId, paymentId)).map(visible)
   }
   return Object.freeze({ allocatePayment, reverseAllocation, listAllocations })
 }

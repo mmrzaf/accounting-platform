@@ -19,9 +19,9 @@ export function createBusinessReports(db: DatabaseSync, { clock = () => new Date
     const today = clock().toISOString().slice(0, 10)
     const invoices = rowsAs<AgeInvoice>(db.prepare(`SELECT i.id,i.kind,i.party_id,c.display_name,i.issued_on,i.number,
        CAST(i.total_minor AS TEXT) AS total_minor
-       FROM trade_invoices i JOIN contacts c ON c.organization_id=i.organization_id AND c.id=i.party_id
-       WHERE i.organization_id=? AND i.company_id=? AND i.kind=? AND i.status='posted' AND i.issued_on<=?
-       ORDER BY i.issued_on,i.id LIMIT 5001`).all(actor.organizationId, input.companyId, input.kind, today))
+       FROM trade_invoices i JOIN contacts c ON c.company_id=i.company_id AND c.id=i.party_id
+       WHERE i.company_id=? AND i.kind=? AND i.status='posted' AND i.issued_on<=?
+       ORDER BY i.issued_on,i.id LIMIT 5001`).all(actor.companyId, input.kind, today))
     if (invoices.length > 5000) return invalid('Aging report exceeds the 5000-invoice safety limit')
     const sum = db.prepare(`SELECT bigint_total(a.amount_minor) AS amount_minor FROM payment_allocations a
       JOIN trade_payments p ON p.id=a.payment_id WHERE a.invoice_id=? AND p.paid_on<=?
@@ -57,13 +57,13 @@ export function createBusinessReports(db: DatabaseSync, { clock = () => new Date
     const actor = identity.requireActor(input.sessionToken, 'accounting.read', input.companyId)
     const book = accounting.getBook(input)
     const stmt = db.prepare(`SELECT a.category,l.debit_minor,l.credit_minor FROM journal_lines l
-      JOIN journal_entries j ON j.id=l.journal_id AND j.organization_id=l.organization_id AND j.company_id=l.company_id
-      JOIN ledger_accounts a ON a.id=l.account_id AND a.organization_id=l.organization_id AND a.company_id=l.company_id
-      WHERE l.organization_id=? AND l.company_id=? AND j.status='posted' AND j.posted_on>=? AND j.posted_on<=?
+      JOIN journal_entries j ON j.id=l.journal_id AND j.company_id=l.company_id
+      JOIN ledger_accounts a ON a.id=l.account_id AND a.company_id=l.company_id
+      WHERE l.company_id=? AND j.status='posted' AND j.posted_on>=? AND j.posted_on<=?
       AND a.category IN ('revenue','expense')`)
     stmt.setReadBigInts(true)
     let revenues = 0n, expenses = 0n
-    for (const raw of stmt.iterate(actor.organizationId, input.companyId, from, through)) {
+    for (const raw of stmt.iterate(actor.companyId, from, through)) {
       const row = rowAs<ProfitRow>(raw)!
       if (row.category === 'revenue') revenues += row.credit_minor - row.debit_minor
       else expenses += row.debit_minor - row.credit_minor

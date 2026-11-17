@@ -28,8 +28,8 @@ async function make(db: DatabaseSync, dir: string) {
   const trading = createTradingService(db, { clock: fixedClock }), tax = createTaxService(db, { clock: fixedClock })
   const inventory = createInventoryService(db, { clock: fixedClock }), imports = createContactImportService(db, { clock: fixedClock })
   const reports = createBusinessReports(db, { clock: fixedClock }), documents = createDocumentService(db, join(dir, 'blobs'), { clock: fixedClock })
-  const boot = await identity.bootstrapOrganization({ slug: 'phase7', name: 'Phase Seven', adminUsername: 'owner', adminDisplayName: 'Owner', password: 'correct horse battery staple 123456' })
-  const { token } = await identity.login({ organizationSlug: 'phase7', username: 'owner', password: 'correct horse battery staple 123456' })
+  const boot = await identity.bootstrapCompany({ name: 'Phase Seven', adminUsername: 'owner', adminDisplayName: 'Owner', password: 'correct horse battery staple 123456' })
+  const { token } = await identity.login({ username: 'owner', password: 'correct horse battery staple 123456' })
   const scope = { sessionToken: token, companyId: boot.company.id }
   accounting.setupBook({ ...scope, baseCurrency: 'IRR', baseDecimals: 0, timezone: 'Asia/Tehran' })
   accounting.addPeriod({ ...scope, code: 'FY', startsOn: '2026-01-01', endsOn: '2026-12-31' })
@@ -125,14 +125,14 @@ test('credit amount, posted payments and direct SQL cannot create negative outst
   assert.equal(checkDatabase(db).ok, true)
 }))
 test('attachments enforce scoped reference, checksum, size limits and protected file naming', () => fixture(f => {
-  const { documents, scope, posted, db, boot, dir } = f
+  const { documents, scope, posted, db, dir } = f
   const content = Buffer.from('invoice attachment content')
   const file = documents.attach({ ...scope, subjectType: 'invoice', subjectId: posted.id, filename: 'receipt.txt', mediaType: 'text/plain', data: content })
   assert.equal(documents.read({ ...scope, attachmentId: file.id }).data.toString(), content.toString())
   assert.equal(documents.list({ ...scope, subjectType: 'invoice', subjectId: posted.id }).length, 1)
   assert.throws(() => documents.attach({ ...scope, subjectType: 'invoice', subjectId: posted.id, filename: '../escape', mediaType: 'text/plain', data: content }))
   assert.throws(() => documents.attach({ ...scope, subjectType: 'invoice', subjectId: posted.id, filename: 'empty.txt', mediaType: 'text/plain', data: Buffer.alloc(0) }))
-  const path = join(dir, 'blobs', boot.organization.id, scope.companyId, `${file.id}.blob`)
+  const path = join(dir, 'blobs', scope.companyId, `${file.id}.blob`)
   writeFileSync(path, Buffer.from('tampered'))
   assert.throws(() => documents.read({ ...scope, attachmentId: file.id }), /size mismatch/u)
   assert.equal(readFileSync(path).toString(), 'tampered')
@@ -145,16 +145,16 @@ test('new business capabilities enforce organization/company isolation and read-
   tax.configure({ ...scope, code: 'vat', name: 'VAT', effectiveOn: '2026-01-01', ratePpm: 100000 })
   const attachment = documents.attach({ ...scope, subjectType: 'invoice', subjectId: posted.id,
     filename: 'file.txt', mediaType: 'text/plain', data: Buffer.from('private data') })
-  const company2 = identity.createCompany({ sessionToken: scope.sessionToken, code: 'secondary', name: 'Other company' })
-  const s2 = { ...scope, companyId: company2.id }
-  assert.deepEqual(inventory.listItems(s2), [])
-  assert.deepEqual(tax.list(s2), [])
+  const company2 = await identity.bootstrapCompany({name:'Other company',adminUsername:'other-owner',adminDisplayName:'Other Owner',password:'separate secure password 98765'})
+  const s2 = { ...scope, companyId: company2.company.id }
+  assert.throws(() => inventory.listItems(s2))
+  assert.throws(() => tax.list(s2))
   assert.throws(() => inventory.getItem({ ...s2, itemId: item.id }))
   assert.throws(() => documents.read({ ...s2, attachmentId: attachment.id }))
-  assert.equal(reports.invoiceAging({ ...s2, kind: 'sale' }).totalOutstandingMinor, '0')
-  const third = await identity.bootstrapOrganization({ slug: 'foreign', name: 'Foreign', adminUsername: 'owner',
+  assert.throws(() => reports.invoiceAging({ ...s2, kind: 'sale' }))
+  const third = await identity.bootstrapCompany({ name: 'Foreign', adminUsername: 'foreign-owner',
     adminDisplayName: 'Owner', password: 'separate secure password 12345' })
-  const external = await identity.login({ organizationSlug: 'foreign', username: 'owner', password: 'separate secure password 12345' })
+  const external = await identity.login({ username: 'foreign-owner', password: 'separate secure password 12345' })
   const foreignScope = { sessionToken: external.token, companyId: third.company.id }
   assert.throws(() => inventory.getItem({ ...foreignScope, itemId: item.id }))
   assert.throws(() => documents.read({ ...foreignScope, attachmentId: attachment.id }))
@@ -162,8 +162,8 @@ test('new business capabilities enforce organization/company isolation and read-
   const password = 'read only role secure password'
   const user = await identity.createUser({ sessionToken: scope.sessionToken, username: 'reader', displayName: 'Reader', password })
   const role = identity.listRoles({ sessionToken: scope.sessionToken }).find(r => r.code === 'company-reader')!
-  identity.assignRole({ sessionToken: scope.sessionToken, roleId: role.id, userId: user.id, companyId: scope.companyId })
-  const login = await identity.login({ organizationSlug: 'phase7', username: 'reader', password })
+  identity.assignRole({ sessionToken: scope.sessionToken, roleId: role.id, userId: user.id})
+  const login = await identity.login({ username: 'reader', password })
   const readerScope = { sessionToken: login.token, companyId: scope.companyId }
   assert.equal(inventory.getItem({ ...readerScope, itemId: item.id }).sku, 'boxed')
   assert.equal(tax.list(readerScope).length, 1)
@@ -176,11 +176,11 @@ test('new business capabilities enforce organization/company isolation and read-
   assert.equal(checkDatabase(db).ok, true)
 }))
 test('stock SQL guard prevents bypassing service for negative amounts and archiving positive stock', () => fixture(f => {
-  const { db, inventory, scope, boot } = f
+  const { db, inventory, scope } = f
   const item = inventory.createItem({ ...scope, sku: 'locked', name: 'Locked stock', unit: 'unit' })
   inventory.move({ ...scope, itemId: item.id, direction: 'in', on: '2026-11-17', quantity: '3', note: 'Start', requestKey: 'sql-stock' })
   assert.throws(() => db.prepare("UPDATE stock_items SET status='archived' WHERE id=?").run(item.id), /Cannot archive/u)
-  assert.throws(() => db.prepare(`INSERT INTO stock_movements(id,organization_id,company_id,item_id,happened_on,direction,quantity_milli,request_key,fingerprint,note)
-    VALUES(?,?,?,?,?,?,?,?,?,?)`).run(randomUUID(), boot.organization.id, scope.companyId, item.id, '2026-11-17', 'out', 4000, 'inject1', 'hash', 'unauthorized'), /Negative stock/u)
+  assert.throws(() => db.prepare(`INSERT INTO stock_movements(id,company_id,item_id,happened_on,direction,quantity_milli,request_key,fingerprint,note)
+    VALUES(?,?,?,?,?,?,?,?,?)`).run(randomUUID(), scope.companyId, item.id, '2026-11-17', 'out', 4000, 'inject1', 'hash', 'unauthorized'), /Negative stock/u)
   assert.equal(inventory.getItem({ ...scope, itemId: item.id }).quantityMilli, '3000')
 }))

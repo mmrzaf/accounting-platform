@@ -5,29 +5,25 @@ import { conflict } from './errors.ts'
 import type { BootstrapInput } from './types.ts'
 import type { IdentityContext } from './context.ts'
 
-/** Scoped application use cases; no direct framework or HTTP dependency. */
+/** Installation-only company bootstrap. There is no public registration or company switching. */
 export function createBootstrapService(ctx: IdentityContext) {
-  const { db, audit, grant, installRoles, transaction } = ctx
-  async function bootstrapOrganization({ slug, name, adminUsername, adminDisplayName, password, companyName, companyCode = 'main' }: BootstrapInput) {
-    slug = code(slug, 'Organization slug')
-    name = requiredString(name, 'Organization name')
-    adminUsername = code(adminUsername, 'Username')
-    adminDisplayName = requiredString(adminDisplayName, 'Administrator name')
-    companyName = requiredString(companyName ?? name, 'Company name')
-    companyCode = code(companyCode, 'Company code')
-    const passwordHash = await hashPassword(password)
-    return transaction(db, () => {
-      if (db.prepare('SELECT 1 FROM organizations WHERE slug=?').get(slug)) throw conflict('Organization slug already exists')
-      const orgId = randomUUID(), userId = randomUUID(), companyId = randomUUID()
-      db.prepare('INSERT INTO organizations(id,slug,name) VALUES(?,?,?)').run(orgId, slug, name)
-      db.prepare('INSERT INTO companies(id,organization_id,code,name) VALUES(?,?,?,?)').run(companyId, orgId, companyCode, companyName)
-      db.prepare('INSERT INTO users(id,organization_id,username,display_name,password_hash) VALUES(?,?,?,?,?)').run(userId, orgId, adminUsername, adminDisplayName, passwordHash)
-      const roles = installRoles(orgId)
-      grant(orgId, userId, roles.get('organization-admin')!, 'organization')
-      grant(orgId, userId, roles.get('company-admin')!, 'company', companyId)
-      audit({ organizationId: orgId, actorId: userId, action: 'organization.bootstrap', subjectType: 'organization', subjectId: orgId })
-      return { organization: { id: orgId, slug, name }, company: { id: companyId, code: companyCode, name: companyName }, administrator: { id: userId, username: adminUsername, displayName: adminDisplayName } }
+  const {db,audit,grant,installRoles,transaction} = ctx
+  async function bootstrapCompany({name,adminUsername,adminDisplayName,password}:BootstrapInput) {
+    name=requiredString(name,'Company name')
+    adminUsername=code(adminUsername,'Username')
+    adminDisplayName=requiredString(adminDisplayName,'Administrator name')
+    const hashed=await hashPassword(password)
+    return transaction(db,()=>{
+      if (db.prepare('SELECT 1 FROM users WHERE username=?').get(adminUsername)) throw conflict('Username already exists')
+      const companyId=randomUUID(), userId=randomUUID()
+      db.prepare('INSERT INTO companies(id,name) VALUES(?,?)').run(companyId,name)
+      db.prepare('INSERT INTO users(id,company_id,username,display_name,password_hash) VALUES(?,?,?,?,?)')
+        .run(userId,companyId,adminUsername,adminDisplayName,hashed)
+      const roles=installRoles(companyId)
+      grant(companyId,userId,roles.get('company-admin')!)
+      audit({companyId,actorId:userId,action:'company.bootstrap',subjectType:'company',subjectId:companyId})
+      return {company:{id:companyId,name},administrator:{id:userId,username:adminUsername,displayName:adminDisplayName}}
     })
   }
-  return Object.freeze({ bootstrapOrganization })
+  return Object.freeze({bootstrapCompany})
 }

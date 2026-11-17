@@ -17,7 +17,8 @@ const paymentSelect = `SELECT id,kind,party_id,paid_on,control_account_id,bank_a
 export function createPaymentService(ctx: TradeContext) {
   const { db, authorize, party, book, account, audit, accounting, transaction } = ctx
   function load(actor: Actor, companyId: string, id: string): PaymentRow {
-    return rowAs<PaymentRow>(db.prepare(`${paymentSelect} WHERE id=? AND organization_id=? AND company_id=?`).get(uuid(id, 'paymentId'), actor.organizationId, companyId)) ?? missing()
+    if (actor.companyId !== companyId) return missing()
+    return rowAs<PaymentRow>(db.prepare(`${paymentSelect} WHERE id=? AND company_id=?`).get(uuid(id, 'paymentId'), actor.companyId)) ?? missing()
   }
   function applied(paymentId: string): bigint {
     const row = rowAs<{ amount: string }>(db.prepare(`SELECT bigint_total(a.amount_minor) AS amount FROM payment_allocations a
@@ -49,7 +50,7 @@ export function createPaymentService(ctx: TradeContext) {
     const fingerprint = hash({ paymentKind, partyId, paidOn, control, bank, amount: amount.toString(), reference, description })
     return transaction(db, () => {
       const actor = authorize(input, 'payments.manage')
-      const existing = rowAs<PaymentRow>(db.prepare(`${paymentSelect} WHERE organization_id=? AND company_id=? AND request_key=?`).get(actor.organizationId, input.companyId, requestKey))
+      const existing = rowAs<PaymentRow>(db.prepare(`${paymentSelect} WHERE company_id=? AND request_key=?`).get(actor.companyId, requestKey))
       if (existing) {
         if (existing.fingerprint !== fingerprint) return conflict('Payment request key reused with different contents')
         return { ...view(existing), replayed: true }
@@ -57,9 +58,8 @@ export function createPaymentService(ctx: TradeContext) {
       const currency = book(actor, input.companyId).base_currency
       checkAccounts(actor, input.companyId, { kind: paymentKind, party_id: partyId, control_account_id: control, bank_account_id: bank })
       const id = randomUUID()
-      db.prepare(`INSERT INTO trade_payments(id,organization_id,company_id,kind,party_id,paid_on,control_account_id,
-       bank_account_id,currency,amount_minor,request_key,fingerprint,reference,description) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
-        .run(id, actor.organizationId, input.companyId, paymentKind, partyId, paidOn, control, bank, currency,
+      db.prepare(`INSERT INTO trade_payments(id,company_id,kind,party_id,paid_on,control_account_id,bank_account_id,currency,amount_minor,request_key,fingerprint,reference,description) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+        .run(id, input.companyId, paymentKind, partyId, paidOn, control, bank, currency,
           amount, requestKey, fingerprint, reference, description)
       audit(actor, input.companyId, 'trade.payment.create', 'trade_payment', id, { kind: paymentKind })
       return { ...view(load(actor, input.companyId, id)), replayed: false }
@@ -74,8 +74,8 @@ export function createPaymentService(ctx: TradeContext) {
     const paymentKind = input.kind === undefined ? null : kind(input.kind, ['receipt','payment'] as const, 'payment kind')
     const limit = input.limit ?? 100
     if (!Number.isInteger(limit) || limit < 1 || limit > 200) return invalid('Invalid list limit')
-    return rowsAs<PaymentRow>(db.prepare(`${paymentSelect} WHERE organization_id=? AND company_id=? AND (? IS NULL OR kind=?)
-      ORDER BY paid_on DESC,id DESC LIMIT ?`).all(actor.organizationId, input.companyId, paymentKind, paymentKind, limit)).map(view)
+    return rowsAs<PaymentRow>(db.prepare(`${paymentSelect} WHERE company_id=? AND (? IS NULL OR kind=?)
+      ORDER BY paid_on DESC,id DESC LIMIT ?`).all(actor.companyId, paymentKind, paymentKind, limit)).map(view)
   }
   function postPayment(input: FinancialMutation) {
     return transaction(db, () => {
@@ -94,9 +94,9 @@ export function createPaymentService(ctx: TradeContext) {
       const journal = accounting.postWithinTransaction({ ...input, date: row.paid_on,
         sourceType: 'trade.payment', sourceId: row.id, sourceEvent: 'post', idempotencyKey: `trade.payment.${row.id}`,
         description: row.description, lines: journalLines }, { allowDocumentSource: true })
-      const number = nextDocumentNumber(db, actor, input.companyId, row.kind)
+      const number = nextDocumentNumber(db, input.companyId, row.kind)
       db.prepare(`UPDATE trade_payments SET journal_id=?,number=?,status='posted'
-        WHERE id=? AND organization_id=? AND company_id=? AND status='draft'`).run(journal.id, number, row.id, actor.organizationId, input.companyId)
+        WHERE id=? AND company_id=? AND status='draft'`).run(journal.id, number, row.id, actor.companyId)
       audit(actor, input.companyId, 'trade.payment.post', 'trade_payment', row.id, { kind: row.kind })
       return { ...view(load(actor, input.companyId, row.id)), replayed: false }
     })
@@ -106,7 +106,7 @@ export function createPaymentService(ctx: TradeContext) {
       const actor = authorize(input, 'payments.manage')
       const row = load(actor, input.companyId, input.id)
       if (row.status !== 'draft') return invalidState('Only drafts may be voided')
-      db.prepare(`UPDATE trade_payments SET status='voided' WHERE id=? AND organization_id=? AND company_id=?`).run(row.id, actor.organizationId, input.companyId)
+      db.prepare(`UPDATE trade_payments SET status='voided' WHERE id=? AND company_id=?`).run(row.id, actor.companyId)
       audit(actor, input.companyId, 'trade.payment.void', 'trade_payment', row.id)
       return view(load(actor, input.companyId, row.id))
     })
@@ -123,7 +123,7 @@ export function createPaymentService(ctx: TradeContext) {
         date, reason, idempotencyKey: requestKey }, { allowDocumentSource: true })
       if (row.status === 'reversed') return { ...view(row), replayed: true }
       db.prepare(`UPDATE trade_payments SET reversal_journal_id=?,status='reversed'
-        WHERE id=? AND organization_id=? AND company_id=?`).run(reversal.id, row.id, actor.organizationId, input.companyId)
+        WHERE id=? AND company_id=?`).run(reversal.id, row.id, actor.companyId)
       audit(actor, input.companyId, 'trade.payment.reverse', 'trade_payment', row.id, { reason })
       return { ...view(load(actor, input.companyId, row.id)), replayed: false }
     })

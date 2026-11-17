@@ -22,7 +22,8 @@ export function createAiHttpHandler(identity: ReturnType<typeof createIdentitySe
       if (method !== 'GET') assertSameOrigin(request,url)
       const sessionToken = bearerCookie(request,secure)
       if (!sessionToken) throw unauthenticated()
-      identity.me(sessionToken)
+      const session = identity.me(sessionToken)
+      const companyId = session.company.id
       if (method !== 'GET') identity.verifyCsrf(sessionToken,request.headers.get('x-csrf-token'))
       if (url.pathname === '/api/ai/provider' && method === 'GET')
         return response(ai.getProvider({sessionToken}))
@@ -33,27 +34,27 @@ export function createAiHttpHandler(identity: ReturnType<typeof createIdentitySe
           supportsTools:b['supportsTools'] as boolean,enabled:b['enabled'] as boolean }))
       }
       if (url.pathname === '/api/ai/policy' && method === 'GET')
-        return response(ai.getPolicy({sessionToken,companyId:text(url.searchParams.get('companyId'),'companyId')}))
+        return response(ai.getPolicy({sessionToken,companyId}))
       if (url.pathname === '/api/ai/policy' && method === 'PUT') {
         const b = await parseJson(request)
-        return response(ai.setPolicy({sessionToken,companyId:text(b['companyId'],'companyId'),
+        return response(ai.setPolicy({sessionToken,companyId,
           autoDrafts:b['autoDrafts'] as boolean,autoPost:b['autoPost'] as boolean }))
       }
       if (url.pathname === '/api/ai/turns' && method === 'GET')
-        return response({items:ai.listTurns({sessionToken,companyId:text(url.searchParams.get('companyId'),'companyId'),
+        return response({items:ai.listTurns({sessionToken,companyId,
           ...(url.searchParams.has('limit') ? {limit:Number(url.searchParams.get('limit'))} : {}) })})
       if (url.pathname === '/api/ai/turns' && method === 'POST') {
         const b = await parseJson(request)
-        return response(await ai.runTurn({sessionToken,companyId:text(b['companyId'],'companyId'),message:text(b['message'],'message'),
+        return response(await ai.runTurn({sessionToken,companyId,message:text(b['message'],'message'),
           clientRequestId:text(b['clientRequestId'],'clientRequestId'),
           ...(b['executionMode'] === undefined ? {} : {executionMode:b['executionMode'] as 'auto'|'review'}) }),201)
       }
       const turn = /^\/api\/ai\/turns\/([0-9a-f-]{36})$/u.exec(url.pathname)
-      if (turn && method === 'GET') return response(ai.getTurn({sessionToken,companyId:text(url.searchParams.get('companyId'),'companyId'),turnId:turn[1]!}))
+      if (turn && method === 'GET') return response(ai.getTurn({sessionToken,companyId,turnId:turn[1]!}))
       const action = /^\/api\/ai\/actions\/([0-9a-f-]{36})\/(approve|reject)$/u.exec(url.pathname)
       if (action && method === 'POST') {
         const b = await parseJson(request)
-        const args = {sessionToken,companyId:text(b['companyId'],'companyId'),actionId:action[1]!,expectedFingerprint:text(b['expectedFingerprint'],'expectedFingerprint')}
+        const args = {sessionToken,companyId,actionId:action[1]!,expectedFingerprint:text(b['expectedFingerprint'],'expectedFingerprint')}
         return response(action[2] === 'approve' ? ai.approveAction(args) : ai.rejectAction(args))
       }
       return response({error:{code:'NOT_FOUND',message:'Not found'},requestId},404)

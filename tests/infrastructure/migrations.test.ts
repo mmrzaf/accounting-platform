@@ -17,10 +17,10 @@ function withFixture<T>(run: (db: DatabaseSync, root: string) => T): T {
 }
 
 test('migrations apply atomically and are idempotent', () => withFixture(db => {
-  assert.deepEqual(migrationStatus(db, migrationDir).pending, ['0001_installation.sql', '0002_identity_access.sql', '0003_accounting_ledger.sql', '0004_trade_operations.sql', '0005_ai_operations.sql', '0006_access_and_tax.sql', '0007_inventory_quantity.sql', '0008_document_attachments.sql', '0009_credit_notes.sql', '0010_contact_imports.sql'])
-  assert.deepEqual(applyMigrations(db, migrationDir).applied, ['0001_installation.sql', '0002_identity_access.sql', '0003_accounting_ledger.sql', '0004_trade_operations.sql', '0005_ai_operations.sql', '0006_access_and_tax.sql', '0007_inventory_quantity.sql', '0008_document_attachments.sql', '0009_credit_notes.sql', '0010_contact_imports.sql'])
+  assert.deepEqual(migrationStatus(db, migrationDir).pending, ['0001_initial.sql'])
+  assert.deepEqual(applyMigrations(db, migrationDir).applied, ['0001_initial.sql'])
   assert.deepEqual(applyMigrations(db, migrationDir).applied, [])
-  assert.equal(migrationStatus(db, migrationDir).applied, 10)
+  assert.equal(migrationStatus(db, migrationDir).applied, 1)
   assert.equal(checkDatabase(db).ok, true)
 }))
 

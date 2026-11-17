@@ -24,25 +24,25 @@ const [major = 0, minor = 0] = version.split('.').map(Number)
 const supported = major === 24 || major === 26 || major === 22 && minor >= 16
 add('node', supported, `Node ${version}${major === 24 ? ' (primary)' : ' (compatibility only)'}`, 'Install Node 24 LTS (22.16+ and 26 are compatibility targets)', 'blocker')
 const packageJson = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { packageManager?: string; devDependencies?: Record<string, string> }
-add('package-manager-policy', packageJson.packageManager === 'pnpm@10.20.0', 'Project requests pnpm@10.20.0', 'Review packageManager and Corepack version', 'blocker')
+add('package-manager-policy', packageJson.packageManager === 'pnpm@10.20.0', 'Project requests pnpm@10.20.0', 'Review packageManager and installed pnpm version', 'blocker')
 add('node-type-alignment', /^24\./u.test(packageJson.devDependencies?.['@types/node'] ?? ''),
   'Node type declarations match Node 24 primary target',
   'On a connected machine, update @types/node to a reviewed 24.x version, regenerate and commit the root pnpm-lock.yaml',
   release ? 'blocker' : 'action')
 add('backend-lock', existsSync(join(root, 'pnpm-lock.yaml')), 'Backend pnpm lockfile', 'Restore the tracked root pnpm-lock.yaml', 'blocker')
 add('backend-dependencies', existsSync(join(root, 'node_modules', 'typescript', 'package.json')),
-  'Backend TypeScript compiler installed locally', 'From repository root: corepack pnpm install --frozen-lockfile', release ? 'blocker' : 'action')
+  'Backend TypeScript compiler installed locally', 'From repository root: pnpm install --frozen-lockfile', release ? 'blocker' : 'action')
 add('browser-lock', existsSync(join(root, 'web', 'pnpm-lock.yaml')),
   'Browser dependency lockfile committed',
-  'First connected handoff: corepack pnpm --dir web install --no-frozen-lockfile; review and COMMIT web/pnpm-lock.yaml. Thereafter use --frozen-lockfile.',
+  'First connected handoff: pnpm --dir web install --no-frozen-lockfile; review and COMMIT web/pnpm-lock.yaml. Thereafter use --frozen-lockfile.',
   release ? 'blocker' : 'action')
 add('browser-dependencies', existsSync(join(root, 'web', 'node_modules', 'react', 'package.json')),
-  'React installed locally', 'From repository root: corepack pnpm --dir web install --frozen-lockfile (after committing the browser lockfile)', release ? 'blocker' : 'action')
+  'React installed locally', 'From repository root: pnpm --dir web install --frozen-lockfile (after committing the browser lockfile)', release ? 'blocker' : 'action')
 add('browser-build', existsSync(join(root, 'web', 'dist', 'index.html')),
-  'Browser production bundle present', 'After installation: corepack pnpm web:build (do not use Vite dev server in production)', release ? 'blocker' : 'action')
+  'Browser production bundle present', 'After installation: pnpm run web:build (do not use Vite dev server in production)', release ? 'blocker' : 'action')
 add('agent-instructions', existsSync(join(root, 'AGENTS.md')) && existsSync(join(root, 'START-HERE.md')),
   'Agent handoff and architecture instructions present', 'Restore AGENTS.md and START-HERE.md', 'blocker')
-add('migrations', existsSync(join(root, 'migrations', '0010_contact_imports.sql')),
+add('migrations', existsSync(join(root, 'migrations', '0001_initial.sql')),
   'Tracked database migrations found', 'Restore the migrations directory before bootstrapping', 'blocker')
 const unresolved = findings.filter(item => item.status !== 'pass')
 const report = { ok: unresolved.length === 0, release, nodeVersion: version, findings,

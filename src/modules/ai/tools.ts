@@ -23,14 +23,14 @@ const obj = (properties: Record<string, unknown>, required: string[] = []): Reco
   type: 'object', properties, required, additionalProperties: false,
 })
 export const TOOL_CATALOG: readonly ToolDescriptor[] = [
-  { name: 'list_contacts', risk: 'read', description: 'Find organization contacts (including suppliers and customers).', permissions: ['contacts.read'], parameters: obj({}) },
+  { name: 'list_contacts', risk: 'read', description: 'Find company contacts (including suppliers and customers).', permissions: ['contacts.read'], parameters: obj({}) },
   { name: 'list_accounts', risk: 'read', description: 'List this company accounting accounts, including IDs and categories.', permissions: ['accounting.read'], parameters: obj({}) },
   { name: 'trial_balance', risk: 'read', description: 'Read exact ledger-derived account balances and trial balance totals for this company.', permissions: ['accounting.read'], parameters: obj({ through: str('Optional YYYY-MM-DD through date') }) },
   { name: 'general_ledger', risk: 'read', description: 'Inspect up to 50 entries and running balances on an account.', permissions: ['accounting.read'], parameters: obj({ accountId: str('Account UUID'), from: str('Optional YYYY-MM-DD start'), through: str('Optional YYYY-MM-DD end') }, ['accountId']) },
   { name: 'list_invoices', risk: 'read', description: 'List sale or purchase invoices for this company.', permissions: ['company.read'], parameters: obj({ kind: { type: 'string', enum: ['sale', 'purchase'] } }, ['kind']) },
   { name: 'get_invoice', risk: 'read', description: 'Inspect an invoice by ID, including outstanding amount.', permissions: ['company.read'], parameters: obj({ invoiceId: str('UUID of invoice') }, ['invoiceId']) },
   { name: 'list_payments', risk: 'read', description: 'List receipts and payments, including unallocated amounts.', permissions: ['payments.read'], parameters: obj({}) },
-  { name: 'create_contact', risk: 'draft', description: 'Create an organization contact.', permissions: ['ai.execute', 'contacts.manage'], parameters: obj({ displayName: str('Contact name'), code: str('Optional contact code') }, ['displayName']) },
+  { name: 'create_contact', risk: 'draft', description: 'Create an company contact.', permissions: ['ai.execute', 'contacts.manage'], parameters: obj({ displayName: str('Contact name'), code: str('Optional contact code') }, ['displayName']) },
   { name: 'create_invoice', risk: 'draft', description: 'Create a DRAFT sale or purchase invoice, not posted to ledger. Amounts MUST be in base-currency minor units.', permissions: ['ai.execute'], parameters: obj({
     kind: { type: 'string', enum: ['sale', 'purchase'] }, partyId: str('Contact UUID'), issuedOn: str('ISO YYYY-MM-DD'),
     controlAccountId: str('Receivable asset for sale or payable liability for purchase'), description: str('Document description'),

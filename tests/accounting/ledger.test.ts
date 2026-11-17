@@ -26,8 +26,8 @@ async function fixture<T>(fn:(state:Awaited<ReturnType<typeof prepareFixture>>)=
 }
 async function prepareFixture(db:DatabaseSync) {
   const identity=createIdentityService(db),accounting=createAccountingService(db)
-  const boot=await identity.bootstrapOrganization({slug:'acme',name:'ACME',adminUsername:'owner',adminDisplayName:'Owner',password})
-  const {token}=await identity.login({organizationSlug:'acme',username:'owner',password})
+  const boot=await identity.bootstrapCompany({name:'ACME',adminUsername:'owner',adminDisplayName:'Owner',password})
+  const {token}=await identity.login({username:'owner',password})
   const scoped={sessionToken:token,companyId:boot.company.id}
   accounting.setupBook({...scoped,baseCurrency:'IRR',baseDecimals:0,timezone:'Asia/Tehran'})
   accounting.addPeriod({...scoped,code:'1405',startsOn:'2026-03-21',endsOn:'2027-03-20'})
@@ -112,8 +112,8 @@ test('posted journals and journal lines are immutable, no direct unbalanced tran
   assert.throws(()=>db.prepare('DELETE FROM journal_lines WHERE journal_id=?').run(entry.id),/cannot be deleted/u)
   assert.throws(()=>db.prepare('DELETE FROM journal_entries WHERE id=?').run(entry.id),/cannot be deleted/u)
   assert.throws(()=>db.prepare('UPDATE journal_entries SET description=? WHERE id=?').run('edited',entry.id),/immutable/u)
-  assert.throws(()=>db.prepare(`INSERT INTO journal_lines(id,journal_id,organization_id,company_id,line_no,account_id,debit_minor,credit_minor,currency,transaction_minor)
-      VALUES(?,?,?,?,?,?,?,?,?,?)`).run('not-uuid',entry.id,String(db.prepare('SELECT organization_id FROM journal_entries WHERE id=?').get(entry.id)?.['organization_id']),entry.companyId,3,accounts.cash.id,100,0,'IRR',100),/Cannot add lines/u)
+  assert.throws(()=>db.prepare(`INSERT INTO journal_lines(id,journal_id,company_id,line_no,account_id,debit_minor,credit_minor,currency,transaction_minor)
+      VALUES(?,?,?,?,?,?,?,?,?)`).run('not-uuid',entry.id,entry.companyId,3,accounts.cash.id,100,0,'IRR',100),/Cannot add lines/u)
 }))
 
 test('closed fiscal period blocks new journals; audited reversal posts into open period',async()=>fixture(({accounting,scoped,post,accounts,db})=>{
@@ -156,8 +156,8 @@ test('multi-currency snapshots are validated, locked and displayed independently
 }))
 
 test('cross-organization and cross-company records are invisible and unpostable',async()=>fixture(async({db,identity,accounting,scoped,accounts,post})=>{
-  const other=await identity.bootstrapOrganization({slug:'other',name:'Other',adminUsername:'owner',adminDisplayName:'Owner',password})
-  const otherSession=await identity.login({organizationSlug:'other',username:'owner',password})
+  const other=await identity.bootstrapCompany({name:'Other',adminUsername:'other-owner',adminDisplayName:'Owner',password})
+  const otherSession=await identity.login({username:'other-owner',password})
   const foreignScope={sessionToken:otherSession.token,companyId:other.company.id}
   accounting.setupBook({...foreignScope,baseCurrency:'USD',baseDecimals:2,timezone:'UTC'})
   accounting.addPeriod({...foreignScope,code:'y2026',startsOn:'2026-01-01',endsOn:'2026-12-31'})
@@ -165,17 +165,16 @@ test('cross-organization and cross-company records are invisible and unpostable'
   deny(()=>accounting.trialBalance({...foreignScope,companyId:scoped.companyId}),'NOT_FOUND')
   deny(()=>accounting.getBook({...scoped,companyId:other.company.id}),'NOT_FOUND')
   fail(()=>post('wrong-account',[debit(foreignAccount.id,'50'),credit(accounts.equity.id,'50')]),'NOT_FOUND')
-  const secondCompany=identity.createCompany({sessionToken:scoped.sessionToken,code:'second',name:'Second'})
-  // Company creators receive a company-admin role, but books must still be explicitly initialized.
-  fail(()=>accounting.getBook({sessionToken:scoped.sessionToken,companyId:secondCompany.id}),'NOT_FOUND')
+  // A session cannot access a different company's book, even without a book there.
+  deny(()=>accounting.getBook({sessionToken:scoped.sessionToken,companyId:other.company.id}),'NOT_FOUND')
   assert.equal(db.prepare('SELECT count(*) AS n FROM journal_entries').get()?.['n'],0)
 }))
 
 test('reader cannot post, configure, reverse or close, even using existing session',async()=>fixture(async({identity,accounting,scoped,accounts,post})=>{
   const staff=await identity.createUser({sessionToken:scoped.sessionToken,username:'reader',displayName:'Reader',password})
   const role=identity.listRoles({sessionToken:scoped.sessionToken}).find(x=>x.code==='company-reader')!
-  identity.assignRole({sessionToken:scoped.sessionToken,userId:staff.id,roleId:role.id,companyId:scoped.companyId})
-  const session=await identity.login({organizationSlug:'acme',username:'reader',password})
+  identity.assignRole({sessionToken:scoped.sessionToken,userId:staff.id,roleId:role.id})
+  const session=await identity.login({username:'reader',password})
   const asReader={sessionToken:session.token,companyId:scoped.companyId}
   assert.equal(accounting.trialBalance(asReader).baseCurrency,'IRR')
   deny(()=>accounting.createAccount({...asReader,code:'evil',name:'Unauthorized',category:'asset'}),'PERMISSION_DENIED')
@@ -195,12 +194,11 @@ test('transaction rollback and posting trigger prevent staging and invalid mutat
   const uid='00000000-0000-4000-8000-000000000009'
   db.exec('BEGIN IMMEDIATE')
   try {
-    db.prepare(`INSERT INTO journal_entries(id,organization_id,company_id,period_id,posted_on,source_type,source_id,source_event,idempotency_key,fingerprint,description,base_currency,posted_by)
-      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(uid,String(db.prepare('SELECT organization_id FROM companies WHERE id=?').get(scoped.companyId)?.['organization_id']),scoped.companyId,period.id,'2026-11-17','manual','manual-failure','post','manual-failure','fingerprint','bad','IRR',String(db.prepare('SELECT id FROM users LIMIT 1').get()?.['id']))
-    const insert=db.prepare(`INSERT INTO journal_lines(id,journal_id,organization_id,company_id,line_no,account_id,debit_minor,credit_minor,currency,transaction_minor) VALUES(?,?,?,?,?,?,?,?,?,?)`)
-    const org=String(db.prepare('SELECT organization_id FROM companies WHERE id=?').get(scoped.companyId)?.['organization_id'])
-    insert.run('00000000-0000-4000-8000-000000000001',uid,org,scoped.companyId,1,accounts.cash.id,5n,0n,'IRR',5n)
-    insert.run('00000000-0000-4000-8000-000000000002',uid,org,scoped.companyId,2,accounts.equity.id,0n,4n,'IRR',4n)
+    db.prepare(`INSERT INTO journal_entries(id,company_id,period_id,posted_on,source_type,source_id,source_event,idempotency_key,fingerprint,description,base_currency,posted_by)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`).run(uid,scoped.companyId,period.id,'2026-11-17','manual','manual-failure','post','manual-failure','fingerprint','bad','IRR',String(db.prepare('SELECT id FROM users LIMIT 1').get()?.['id']))
+    const insert=db.prepare(`INSERT INTO journal_lines(id,journal_id,company_id,line_no,account_id,debit_minor,credit_minor,currency,transaction_minor) VALUES(?,?,?,?,?,?,?,?,?)`)
+    insert.run('00000000-0000-4000-8000-000000000001',uid,scoped.companyId,1,accounts.cash.id,5n,0n,'IRR',5n)
+    insert.run('00000000-0000-4000-8000-000000000002',uid,scoped.companyId,2,accounts.equity.id,0n,4n,'IRR',4n)
     assert.throws(()=>db.prepare('UPDATE journal_entries SET status=? WHERE id=?').run('posted',uid),/Unbalanced journal/u)
   } finally {db.exec('ROLLBACK')}
   assert.equal(checkDatabase(db).ok,true)
@@ -243,21 +241,20 @@ test('conventional trial balance reports ending debit and credit balances, not g
 }))
 
 test('raw SQL cannot bypass the journal posting transition or an open fiscal period',async()=>fixture(({db,scoped,accounts,accounting})=>{
-  const org=String(db.prepare('SELECT organization_id FROM companies WHERE id=?').get(scoped.companyId)?.['organization_id'])
-  const user=String(db.prepare('SELECT id FROM users WHERE organization_id=? LIMIT 1').get(org)?.['id'])
+  const user=String(db.prepare('SELECT id FROM users WHERE company_id=? LIMIT 1').get(scoped.companyId)?.['id'])
   const period=accounting.listPeriods(scoped)[0]!
   const id='10000000-0000-4000-8000-000000000001'
-  const insert=db.prepare(`INSERT INTO journal_entries(id,organization_id,company_id,period_id,posted_on,
+  const insert=db.prepare(`INSERT INTO journal_entries(id,company_id,period_id,posted_on,
     source_type,source_id,source_event,idempotency_key,fingerprint,description,base_currency,posted_by,status)
-    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
-  assert.throws(()=>insert.run(id,org,scoped.companyId,period.id,'2026-11-17','manual','raw','post','raw','fp','forged','IRR',user,'posted'),/begin in staging/u)
+    VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+  assert.throws(()=>insert.run(id,scoped.companyId,period.id,'2026-11-17','manual','raw','post','raw','fp','forged','IRR',user,'posted'),/begin in staging/u)
   db.exec('BEGIN IMMEDIATE')
   try {
-    insert.run(id,org,scoped.companyId,period.id,'2028-02-01','manual','raw','post','raw','fp','wrong period','IRR',user,'staging')
-    const line=db.prepare(`INSERT INTO journal_lines(id,journal_id,organization_id,company_id,line_no,
-      account_id,debit_minor,credit_minor,currency,transaction_minor) VALUES(?,?,?,?,?,?,?,?,?,?)`)
-    line.run('10000000-0000-4000-8000-000000000002',id,org,scoped.companyId,1,accounts.cash.id,100n,0n,'IRR',100n)
-    line.run('10000000-0000-4000-8000-000000000003',id,org,scoped.companyId,2,accounts.equity.id,0n,100n,'IRR',100n)
+    insert.run(id,scoped.companyId,period.id,'2028-02-01','manual','raw','post','raw','fp','wrong period','IRR',user,'staging')
+    const line=db.prepare(`INSERT INTO journal_lines(id,journal_id,company_id,line_no,
+      account_id,debit_minor,credit_minor,currency,transaction_minor) VALUES(?,?,?,?,?,?,?,?,?)`)
+    line.run('10000000-0000-4000-8000-000000000002',id,scoped.companyId,1,accounts.cash.id,100n,0n,'IRR',100n)
+    line.run('10000000-0000-4000-8000-000000000003',id,scoped.companyId,2,accounts.equity.id,0n,100n,'IRR',100n)
     assert.throws(()=>db.prepare("UPDATE journal_entries SET status='posted' WHERE id=?").run(id),/open matching fiscal period/u)
   }finally {db.exec('ROLLBACK')}
   assert.equal(db.prepare('SELECT count(*) as n FROM journal_entries').get()?.['n'],0)
@@ -278,9 +275,10 @@ test('posting and audit are rolled back with the caller transaction',async()=>fi
     idempotencyKey:'invalid',description:'Fake reversal',lines:[debit(accounts.cash.id,'30'),credit(accounts.equity.id,'30')]}),'INVALID_INPUT')
 }))
 
-test('two companies in one organization have independent books and scoped idempotency',async()=>fixture(async({identity,accounting,scoped,accounts,post})=>{
-  const second=identity.createCompany({sessionToken:scoped.sessionToken,code:'branch-b',name:'Company B'})
-  const b={sessionToken:scoped.sessionToken,companyId:second.id}
+test('two independent companies have separate books and scoped idempotency',async()=>fixture(async({identity,accounting,scoped,accounts,post})=>{
+  const second=await identity.bootstrapCompany({name:'Company B',adminUsername:'company-b-owner',adminDisplayName:'Company B Owner',password})
+  const secondLogin=await identity.login({username:'company-b-owner',password})
+  const b={sessionToken:secondLogin.token,companyId:second.company.id}
   accounting.setupBook({...b,baseCurrency:'USD',baseDecimals:2,timezone:'UTC'})
   accounting.addPeriod({...b,code:'2026',startsOn:'2026-01-01',endsOn:'2026-12-31'})
   const bCash=accounting.createAccount({...b,code:'cash',name:'Cash',category:'asset'})
@@ -296,8 +294,8 @@ test('two companies in one organization have independent books and scoped idempo
     idempotencyKey:'cross-company-account',description:'Must fail',lines:[debit(accounts.cash.id,'100'),credit(bEquity.id,'100')]}),'NOT_FOUND')
   const staff=await identity.createUser({sessionToken:scoped.sessionToken,username:'company-a-staff',displayName:'Company A staff',password})
   const role=identity.listRoles({sessionToken:scoped.sessionToken}).find(r=>r.code==='company-reader')!
-  identity.assignRole({sessionToken:scoped.sessionToken,userId:staff.id,roleId:role.id,companyId:scoped.companyId})
-  const login=await identity.login({organizationSlug:'acme',username:'company-a-staff',password})
+  identity.assignRole({sessionToken:scoped.sessionToken,userId:staff.id,roleId:role.id})
+  const login=await identity.login({username:'company-a-staff',password})
   assert.equal(accounting.trialBalance({...scoped,sessionToken:login.token}).totalDebitMinor,'150')
-  deny(()=>accounting.trialBalance({...b,sessionToken:login.token}),'PERMISSION_DENIED')
+  deny(()=>accounting.trialBalance({...b,sessionToken:login.token}),'NOT_FOUND')
 }))

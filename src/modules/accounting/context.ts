@@ -6,7 +6,6 @@ import { missing } from './errors.ts'
 import { uuid } from './validation.ts'
 import type { ScopedAction } from './types.ts'
 export interface BookRow {
-  organization_id: string
   company_id: string
   base_currency: string
   timezone: string
@@ -35,12 +34,13 @@ export function accountingContext(db: DatabaseSync, clock: () => Date) {
     return identity.requireActor(input.sessionToken, permission, input.companyId)
   }
   const bookFor = (actor: Actor, companyId: string): BookRow => {
-    const book = rowAs<BookRow>(db.prepare('SELECT organization_id,company_id,base_currency,timezone FROM accounting_books WHERE organization_id=? AND company_id=?').get(actor.organizationId, companyId))
+    if (actor.companyId !== companyId) return missing()
+    const book = rowAs<BookRow>(db.prepare('SELECT company_id,base_currency,timezone FROM accounting_books WHERE company_id=?').get(actor.companyId))
     if (!book)
       return missing()
     return book
   }
-  const audit = (actor: Actor, companyId: string, action: string, subjectType: string, subjectId: string, details: Record<string, string | number | boolean | null> = {}) => identity.audit({ organizationId: actor.organizationId, companyId, actorId: actor.userId, action, subjectType, subjectId, details })
+  const audit = (actor: Actor, companyId: string, action: string, subjectType: string, subjectId: string, details: Record<string, string | number | boolean | null> = {}) => identity.audit({ companyId, actorId: actor.userId, action, subjectType, subjectId, details })
   return { db, actorFor, bookFor, audit, transaction: identity.transaction, now: identity.now }
 }
 export type AccountingContext = ReturnType<typeof accountingContext>

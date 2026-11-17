@@ -57,9 +57,9 @@ export function createBusinessHttpHandler(
       if (method !== 'GET') assertSameOrigin(request, url)
       const sessionToken = bearerCookie(request, secure)
       if (!sessionToken) throw unauthenticated()
-      identity.me(sessionToken)
+      const session = identity.me(sessionToken)
       if (method !== 'GET') identity.verifyCsrf(sessionToken, request.headers.get('x-csrf-token'))
-      const scope = { sessionToken, companyId: required(url.searchParams.get('companyId') ?? undefined, 'companyId') }
+      const scope = { sessionToken, companyId: session.company.id }
       if (url.pathname === '/api/business/contacts') {
         if (method === 'GET') return response({ items: trading.listContacts(scope) })
         const body = await parseJson(request)
@@ -67,7 +67,32 @@ export function createBusinessHttpHandler(
           ...(body['code'] === undefined ? {} : { code: required(body['code'], 'code') }),
           ...(body['requestKey'] === undefined ? {} : { requestKey: required(body['requestKey'], 'requestKey') }) }), 201)
       }
+      const contact = new RegExp(`^/api/business/contacts/(${ID})(?:/(rename|status))?$`, 'u').exec(url.pathname)
+      if (contact) {
+        const id = contact[1]!
+        if (method === 'GET' && !contact[2]) return response(trading.getContact({ ...scope, contactId: id }))
+        if (method === 'POST' && contact[2] === 'rename') {
+          const b = await parseJson(request)
+          const revision = b['expectedRevision']
+          if (typeof revision !== 'number' || !Number.isSafeInteger(revision)) throw new IdentityError('VALIDATION_FAILED', 'Invalid revision')
+          return response(trading.renameContact({ ...scope, contactId: id,
+            displayName: required(b['displayName'], 'displayName'), expectedRevision: revision }))
+        }
+        if (method === 'POST' && contact[2] === 'status') {
+          const b = await parseJson(request)
+          if (b['status'] !== 'active' && b['status'] !== 'archived') throw new IdentityError('VALIDATION_FAILED', 'Invalid contact status')
+          return response(trading.setContactStatus({ ...scope, contactId: id, status: b['status'] }))
+        }
+      }
       if (url.pathname === '/api/business/accounts' && method === 'GET') return response({ items: accounting.listAccounts(scope) })
+      if (url.pathname === '/api/business/invoices/record' && method === 'POST') {
+        const b = await parseJson(request)
+        return response(trading.recordInvoice({ ...scope, kind: invoiceKind(b['kind']),
+          partyId: required(b['partyId'], 'partyId'), issuedOn: required(b['issuedOn'], 'issuedOn'),
+          controlAccountId: required(b['controlAccountId'], 'controlAccountId'),
+          description: required(b['description'], 'description'),
+          requestKey: required(b['requestKey'], 'requestKey'), lines: invoiceLines(b['lines']) }), 201)
+      }
       if (url.pathname === '/api/business/invoices') {
         if (method === 'GET') return response({ items: trading.listInvoices({ ...scope, kind: invoiceKind(url.searchParams.get('kind')), limit: optionalLimit(url.searchParams.get('limit')) }) })
         const b = await parseJson(request)
@@ -75,16 +100,40 @@ export function createBusinessHttpHandler(
           issuedOn: required(b['issuedOn'], 'issuedOn'), controlAccountId: required(b['controlAccountId'], 'controlAccountId'),
           description: required(b['description'], 'description'), requestKey: required(b['requestKey'], 'requestKey'), lines: invoiceLines(b['lines']) }), 201)
       }
-      const invoice = new RegExp(`^/api/business/invoices/(${ID})(?:/(post|reverse))?$`, 'u').exec(url.pathname)
+      const invoice = new RegExp(`^/api/business/invoices/(${ID})(?:/(post|reverse|revise|void))?$`, 'u').exec(url.pathname)
       if (invoice) {
         const id = invoice[1]!
         if (method === 'GET' && !invoice[2]) return response(trading.getInvoice({ ...scope, invoiceId: id }))
+        if (method === 'POST' && invoice[2] === 'revise') {
+          const b = await parseJson(request)
+          if (typeof b['expectedRevision'] !== 'number' || !Number.isSafeInteger(b['expectedRevision']))
+            throw new IdentityError('VALIDATION_FAILED', 'Invalid revision')
+          return response(trading.reviseInvoice({ ...scope, invoiceId: id,
+            expectedRevision: b['expectedRevision'], kind: invoiceKind(b['kind']),
+            partyId: required(b['partyId'], 'partyId'), issuedOn: required(b['issuedOn'], 'issuedOn'),
+            controlAccountId: required(b['controlAccountId'], 'controlAccountId'),
+            description: required(b['description'], 'description'), lines: invoiceLines(b['lines']) }))
+        }
+        if (method === 'POST' && invoice[2] === 'void') return response(trading.voidInvoice({ ...scope, id }))
         if (method === 'POST' && invoice[2] === 'post') return response(trading.postInvoice({ ...scope, id }))
         if (method === 'POST' && invoice[2] === 'reverse') {
           const b = await parseJson(request)
           return response(trading.reverseInvoice({ ...scope, id, reversedOn: required(b['reversedOn'], 'reversedOn'),
             reason: required(b['reason'], 'reason'), requestKey: required(b['requestKey'], 'requestKey') }))
         }
+      }
+      if (url.pathname === '/api/business/payments/record' && method === 'POST') {
+        const b = await parseJson(request)
+        return response(trading.recordPayment({ ...scope, kind: paymentKind(b['kind']),
+          partyId: required(b['partyId'], 'partyId'), paidOn: required(b['paidOn'], 'paidOn'),
+          controlAccountId: required(b['controlAccountId'], 'controlAccountId'),
+          bankAccountId: required(b['bankAccountId'], 'bankAccountId'),
+          amountMinor: required(b['amountMinor'], 'amountMinor'),
+          description: required(b['description'], 'description'), requestKey: required(b['requestKey'], 'requestKey'),
+          ...(b['reference'] === undefined ? {} : { reference: required(b['reference'], 'reference') }),
+          ...(b['invoiceId'] === undefined ? {} : { invoiceId: required(b['invoiceId'], 'invoiceId') }),
+          ...(b['allocationMinor'] === undefined ? {} : { allocationMinor: required(b['allocationMinor'], 'allocationMinor') }),
+        }), 201)
       }
       if (url.pathname === '/api/business/payments') {
         if (method === 'GET') {
@@ -98,10 +147,11 @@ export function createBusinessHttpHandler(
           description: required(b['description'], 'description'), requestKey: required(b['requestKey'], 'requestKey'),
           ...(b['reference'] === undefined ? {} : { reference: required(b['reference'], 'reference') }) }), 201)
       }
-      const payment = new RegExp(`^/api/business/payments/(${ID})(?:/(post|reverse))?$`, 'u').exec(url.pathname)
+      const payment = new RegExp(`^/api/business/payments/(${ID})(?:/(post|reverse|void))?$`, 'u').exec(url.pathname)
       if (payment) {
         const id = payment[1]!
         if (method === 'GET' && !payment[2]) return response(trading.getPayment({ ...scope, paymentId: id }))
+        if (method === 'POST' && payment[2] === 'void') return response(trading.voidPayment({ ...scope, id }))
         if (method === 'POST' && payment[2] === 'post') return response(trading.postPayment({ ...scope, id }))
         if (method === 'POST' && payment[2] === 'reverse') {
           const b = await parseJson(request)
@@ -116,6 +166,12 @@ export function createBusinessHttpHandler(
         const b = await parseJson(request)
         return response(trading.allocatePayment({ ...scope, invoiceId: required(b['invoiceId'], 'invoiceId'), paymentId: required(b['paymentId'], 'paymentId'),
           amountMinor: required(b['amountMinor'], 'amountMinor'), requestKey: required(b['requestKey'], 'requestKey') }), 201)
+      }
+      const allocation = new RegExp(`^/api/business/allocations/(${ID})/reverse$`, 'u').exec(url.pathname)
+      if (allocation && method === 'POST') {
+        const b = await parseJson(request)
+        return response(trading.reverseAllocation({ ...scope, allocationId: allocation[1]!,
+          reason: required(b['reason'], 'reason'), requestKey: required(b['requestKey'], 'requestKey') }))
       }
       if (method === 'GET' && url.pathname === '/api/business/reports/aging')
         return response(reports.invoiceAging({ ...scope, kind: invoiceKind(url.searchParams.get('kind')) }))

@@ -4,6 +4,7 @@ import { createBookService } from './books.ts'
 import { createChartService } from './accounts.ts'
 import { createPostingService } from './posting.ts'
 import { createReportingService } from './reporting.ts'
+import { createPostingDefaultsService } from './defaults.ts'
 /** Framework-neutral entry point, intended for UI, CLI and AI adapters alike. */
 export function createAccountingService(db: DatabaseSync, { clock = () => new Date() }: {
   clock?: () => Date
@@ -19,5 +20,6 @@ export function createAccountingService(db: DatabaseSync, { clock = () => new Da
     getJournal: posting.getJournal,
     reverseJournal: posting.reverseJournal,
     ...createReportingService(context),
+    ...createPostingDefaultsService(context),
   })
 }

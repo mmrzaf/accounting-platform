@@ -14,16 +14,20 @@ const query = `SELECT id,invoice_id,invoice_line_id,account_id,credited_on,CAST(
 /** Partial credit notes against one line of an unpaid source invoice; no inventory/tax/refund side effects. */
 export function createCreditService(ctx: TradeContext) {
   const { db, authorize, transaction, accounting, audit, book } = ctx
-  const invoice = (actor: Actor, companyId: string, id: string) => rowAs<Invoice>(db.prepare(`SELECT id,kind,status,issued_on,control_account_id,
-    CAST(total_minor AS TEXT) AS total_minor,currency FROM trade_invoices WHERE organization_id=? AND company_id=? AND id=?`)
-      .get(actor.organizationId, companyId, uuid(id, 'invoiceId'))) ?? missing()
+  const invoice = (actor: Actor, companyId: string, id: string) => {
+    if (actor.companyId !== companyId) return missing()
+    return rowAs<Invoice>(db.prepare(`SELECT id,kind,status,issued_on,control_account_id,
+    CAST(total_minor AS TEXT) AS total_minor,currency FROM trade_invoices WHERE company_id=? AND id=?`)
+      .get(actor.companyId, uuid(id, 'invoiceId'))) ?? missing()
+  }
   function line(invoiceId: string, lineId: string) {
     return rowAs<Line>(db.prepare(`SELECT id,account_id,CAST(line_total_minor AS TEXT) AS line_total_minor FROM trade_invoice_lines
       WHERE invoice_id=? AND id=?`).get(invoiceId, uuid(lineId, 'invoiceLineId'))) ?? missing()
   }
   const permission = (kind: Invoice['kind'], action: 'read' | 'manage') => kind === 'sale' ? `sales.${action}` as const : `purchasing.${action}` as const
   function load(actor: Actor, companyId: string, id: string) {
-    return rowAs<Credit>(db.prepare(`${query} WHERE organization_id=? AND company_id=? AND id=?`).get(actor.organizationId, companyId, uuid(id, 'creditNoteId'))) ?? missing()
+    if (actor.companyId !== companyId) return missing()
+    return rowAs<Credit>(db.prepare(`${query} WHERE company_id=? AND id=?`).get(actor.companyId, uuid(id, 'creditNoteId'))) ?? missing()
   }
   const present = (r: Credit) => ({ id: r.id, invoiceId: r.invoice_id, invoiceLineId: r.invoice_line_id,
     creditedOn: r.credited_on, amountMinor: r.amount_minor, reason: r.reason, status: r.status, journalId: r.journal_id, reversalJournalId: r.reversal_journal_id })
@@ -43,7 +47,7 @@ export function createCreditService(ctx: TradeContext) {
       const actor = authorize(input, 'company.read')
       const source = invoice(actor, input.companyId, invoiceId)
       authorize(input, permission(source.kind, 'manage'))
-      const existing = rowAs<Credit>(db.prepare(`${query} WHERE organization_id=? AND company_id=? AND request_key=?`).get(actor.organizationId, input.companyId, requestKey))
+      const existing = rowAs<Credit>(db.prepare(`${query} WHERE company_id=? AND request_key=?`).get(actor.companyId, requestKey))
       if (existing) {
         if (existing.fingerprint !== fingerprint) return conflict('Credit request key reused with different contents')
         return { ...present(existing), replayed: true }
@@ -52,8 +56,7 @@ export function createCreditService(ctx: TradeContext) {
       const invoiceLine = line(source.id, lineId)
       if (amount > BigInt(invoiceLine.line_total_minor)) return invalid('Credit exceeds source line amount')
       const id = randomUUID()
-      db.prepare(`INSERT INTO trade_credit_notes(id,organization_id,company_id,invoice_id,invoice_line_id,account_id,credited_on,amount_minor,reason,request_key,fingerprint)
-        VALUES(?,?,?,?,?,?,?,?,?,?,?)`).run(id, actor.organizationId, input.companyId, invoiceId, lineId, invoiceLine.account_id, creditedOn, amount, reason, requestKey, fingerprint)
+      db.prepare(`INSERT INTO trade_credit_notes(id,company_id,invoice_id,invoice_line_id,account_id,credited_on,amount_minor,reason,request_key,fingerprint) VALUES(?,?,?,?,?,?,?,?,?,?)`).run(id, input.companyId, invoiceId, lineId, invoiceLine.account_id, creditedOn, amount, reason, requestKey, fingerprint)
       audit(actor, input.companyId, 'trade.credit.create', 'trade_credit_note', id)
       return { ...present(load(actor, input.companyId, id)), replayed: false }
     })
@@ -119,8 +122,8 @@ export function createCreditService(ctx: TradeContext) {
   function list(input: CompanyAction & { invoiceId: string }) {
     const actor = authorize(input, 'company.read'), source = invoice(actor, input.companyId, input.invoiceId)
     authorize(input, permission(source.kind, 'read'))
-    return rowsAs<Credit>(db.prepare(`${query} WHERE organization_id=? AND company_id=? AND invoice_id=? ORDER BY id LIMIT 1000`)
-      .all(actor.organizationId, input.companyId, source.id)).map(present)
+    return rowsAs<Credit>(db.prepare(`${query} WHERE company_id=? AND invoice_id=? ORDER BY id LIMIT 1000`)
+      .all(actor.companyId, source.id)).map(present)
   }
   return Object.freeze({ createCreditNote: create, postCreditNote: post, reverseCreditNote: reverse, voidCreditNote, getCreditNote: get, listCreditNotes: list })
 }

@@ -50,9 +50,9 @@ export function createAccountingHttpHandler(identity: ReturnType<typeof createId
       if (method !== 'GET') assertSameOrigin(request, url)
       const sessionToken = bearerCookie(request, secure)
       if (!sessionToken) throw unauthenticated()
-      identity.me(sessionToken)
+      const session = identity.me(sessionToken)
       if (method !== 'GET') identity.verifyCsrf(sessionToken, request.headers.get('x-csrf-token'))
-      const scope = { sessionToken, companyId: required(url.searchParams.get('companyId'), 'companyId') }
+      const scope = { sessionToken, companyId: session.company.id }
       const body = () => parseJson(request)
       const path = url.pathname
       if (path === '/api/accounting/book') {
@@ -60,6 +60,17 @@ export function createAccountingHttpHandler(identity: ReturnType<typeof createId
         const b = await body()
         return response(accounting.setupBook({ ...scope, baseCurrency: required(b['baseCurrency'], 'baseCurrency'),
           baseDecimals: integer(b['baseDecimals'], 'baseDecimals'), timezone: required(b['timezone'], 'timezone') }), 201)
+      }
+      if (path === '/api/accounting/posting-defaults') {
+        if (method === 'GET') return response(accounting.getPostingDefaults(scope))
+        const b = await body()
+        return response(accounting.configurePostingDefaults({ ...scope,
+          receivablesId: required(b['receivablesId'], 'receivablesId'),
+          payablesId: required(b['payablesId'], 'payablesId'),
+          revenueId: required(b['revenueId'], 'revenueId'),
+          expenseId: required(b['expenseId'], 'expenseId'),
+          cashId: required(b['cashId'], 'cashId'),
+        }))
       }
       if (path === '/api/accounting/currencies') {
         if (method === 'GET') return response({ items: accounting.listCurrencies(scope) })

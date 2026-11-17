@@ -52,9 +52,9 @@ export function createExtensionsHttpHandler(
       if (method !== 'GET') assertSameOrigin(request, url)
       const sessionToken = bearerCookie(request, secure)
       if (!sessionToken) throw unauthenticated()
-      identity.me(sessionToken)
+      const session = identity.me(sessionToken)
       if (method !== 'GET') identity.verifyCsrf(sessionToken, request.headers.get('x-csrf-token'))
-      const scope = { sessionToken, companyId: required(url.searchParams.get('companyId'), 'companyId') }
+      const scope = { sessionToken, companyId: session.company.id }
       const path = url.pathname
       const body = () => parseJson(request, path === '/api/imports/contacts' ? 2 * 1024 * 1024 : undefined)
       if (path === '/api/inventory/items') {

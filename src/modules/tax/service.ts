@@ -18,16 +18,16 @@ export function createTaxService(db: DatabaseSync, { clock = () => new Date() }:
     if (!Number.isSafeInteger(rate) || rate < 0 || rate > 1_000_000) return invalid('Rate must be integer parts per million from 0 through 1000000')
     return transaction(db, () => {
       const actor = identity.requireActor(input.sessionToken, 'tax.manage', input.companyId)
-      const existing = rowAs<TaxRow>(db.prepare(`SELECT id,code,name,effective_on,rate_ppm FROM tax_code_versions WHERE organization_id=? AND company_id=? AND code=? AND effective_on=?`)
-        .get(actor.organizationId, input.companyId, code, effectiveOn))
+      const existing = rowAs<TaxRow>(db.prepare(`SELECT id,code,name,effective_on,rate_ppm FROM tax_code_versions WHERE company_id=? AND code=? AND effective_on=?`)
+        .get(actor.companyId, code, effectiveOn))
       if (existing) {
         if (existing.name !== name || existing.rate_ppm !== rate) return conflict('Tax-code date already configured differently')
         return { ...presentation(existing), replayed: true }
       }
       const id = randomUUID()
-      db.prepare(`INSERT INTO tax_code_versions(id,organization_id,company_id,code,name,effective_on,rate_ppm,created_by) VALUES(?,?,?,?,?,?,?,?)`)
-        .run(id, actor.organizationId, input.companyId, code, name, effectiveOn, rate, actor.userId)
-      identity.audit({ organizationId: actor.organizationId, companyId: input.companyId, actorId: actor.userId,
+      db.prepare(`INSERT INTO tax_code_versions(id,company_id,code,name,effective_on,rate_ppm,created_by) VALUES(?,?,?,?,?,?,?)`)
+        .run(id, input.companyId, code, name, effectiveOn, rate, actor.userId)
+      identity.audit({ companyId: input.companyId, actorId: actor.userId,
         action: 'tax.configure', subjectType: 'tax_code_version', subjectId: id, details: { code, effectiveOn, ratePpm: rate } })
       return { id, code, name, effectiveOn, ratePpm: rate, replayed: false }
     })
@@ -36,15 +36,15 @@ export function createTaxService(db: DatabaseSync, { clock = () => new Date() }:
     const actor = identity.requireActor(input.sessionToken, 'tax.read', input.companyId)
     const code = input.code === undefined ? null : key(input.code, 'tax code')
     return rowsAs<TaxRow>(db.prepare(`SELECT id,code,name,effective_on,rate_ppm FROM tax_code_versions
-      WHERE organization_id=? AND company_id=? AND (? IS NULL OR code=?) ORDER BY code,effective_on DESC`)
-      .all(actor.organizationId, input.companyId, code, code)).map(presentation)
+      WHERE company_id=? AND (? IS NULL OR code=?) ORDER BY code,effective_on DESC`)
+      .all(actor.companyId, code, code)).map(presentation)
   }
   function atDate(input: CompanyAction & { code: string; on: string }) {
     const actor = identity.requireActor(input.sessionToken, 'tax.read', input.companyId)
     const code = key(input.code, 'tax code'), on = dateOnly(input.on)
     const row = rowAs<TaxRow>(db.prepare(`SELECT id,code,name,effective_on,rate_ppm FROM tax_code_versions
-      WHERE organization_id=? AND company_id=? AND code=? AND effective_on<=? ORDER BY effective_on DESC LIMIT 1`)
-      .get(actor.organizationId, input.companyId, code, on))
+      WHERE company_id=? AND code=? AND effective_on<=? ORDER BY effective_on DESC LIMIT 1`)
+      .get(actor.companyId, code, on))
     return row ? presentation(row) : missing()
   }
   function quote(input: CompanyAction & { code: string; on: string; amountMinor: string }) {

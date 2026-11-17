@@ -8,7 +8,6 @@ import type { Actor } from '../identity/types.ts'
 import type { JournalLineInput, PostJournalInput, ReverseJournalInput } from './types.ts'
 interface JournalRow {
   id: string
-  organization_id: string
   company_id: string
   period_id: string
   posted_on: string
@@ -61,13 +60,17 @@ function encodeFingerprint(value: unknown): string {
 /** Explicit transaction boundary. No model/HTTP calls or background IO while holding the lock. */
 export function createPostingService(ctx: AccountingContext) {
   const { db, transaction, actorFor, bookFor, audit } = ctx
-  const loadEntry = (actor: Actor, companyId: string, id: string): JournalRow | undefined => rowAs<JournalRow>(db.prepare('SELECT * FROM journal_entries WHERE id=? AND organization_id=? AND company_id=? AND status=?').get(id, actor.organizationId, companyId, 'posted'))
+  const loadEntry = (actor: Actor, companyId: string, id: string): JournalRow | undefined => {
+    if (actor.companyId !== companyId) return missing()
+    return rowAs<JournalRow>(db.prepare('SELECT * FROM journal_entries WHERE id=? AND company_id=? AND status=?').get(id, actor.companyId, 'posted'))
+  }
   const loadLines = (actor: Actor, companyId: string, id: string): StoredLine[] => {
+    if (actor.companyId !== companyId) return missing()
     const stmt = db.prepare(`SELECT id,line_no,account_id,debit_minor,credit_minor,currency,transaction_minor,
    rate_numerator,rate_denominator,rate_date,rate_source,memo FROM journal_lines
-   WHERE organization_id=? AND company_id=? AND journal_id=? ORDER BY line_no`)
+   WHERE company_id=? AND journal_id=? ORDER BY line_no`)
     stmt.setReadBigInts(true)
-    return rowsAs<StoredLine>(stmt.all(actor.organizationId, companyId, id))
+    return rowsAs<StoredLine>(stmt.all(actor.companyId, id))
   }
   const canonical = (entry: JournalRow, lines: StoredLine[]) => ({
     id: entry.id, companyId: entry.company_id, periodId: entry.period_id, date: entry.posted_on,
@@ -80,7 +83,8 @@ export function createPostingService(ctx: AccountingContext) {
       memo: line.memo }))
   })
   const requirePeriod = (actor: Actor, companyId: string, date: string): PeriodRow => {
-    const period = rowAs<PeriodRow>(db.prepare('SELECT id,code,starts_on,ends_on,status FROM fiscal_periods WHERE organization_id=? AND company_id=? AND starts_on<=? AND ends_on>=?').get(actor.organizationId, companyId, date, date))
+    if (actor.companyId !== companyId) return missing()
+    const period = rowAs<PeriodRow>(db.prepare('SELECT id,code,starts_on,ends_on,status FROM fiscal_periods WHERE company_id=? AND starts_on<=? AND ends_on>=?').get(actor.companyId, date, date))
     if (!period)
       return invalid('Posting date has no configured fiscal period')
     if (period.status !== 'open')
@@ -88,7 +92,7 @@ export function createPostingService(ctx: AccountingContext) {
     return period
   }
   const byIdempotency = (actor: Actor, companyId: string, idempotencyKey: string, fingerprint: string): ReturnType<typeof canonical> | null => {
-    const existing = rowAs<JournalRow>(db.prepare('SELECT * FROM journal_entries WHERE organization_id=? AND company_id=? AND idempotency_key=?').get(actor.organizationId, companyId, idempotencyKey))
+    const existing = rowAs<JournalRow>(db.prepare('SELECT * FROM journal_entries WHERE company_id=? AND idempotency_key=?').get(actor.companyId, idempotencyKey))
     if (!existing)
       return null
     if (existing.fingerprint !== fingerprint || existing.status !== 'posted')
@@ -108,14 +112,11 @@ export function createPostingService(ctx: AccountingContext) {
     reversesId: string | null
     baseCurrency: string
   }, lines: PreparedLine[]) => {
-    db.prepare(`INSERT INTO journal_entries(id,organization_id,company_id,period_id,posted_on,source_type,source_id,
-   source_event,idempotency_key,fingerprint,description,reverses_id,base_currency,posted_by)
-   VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(entry.id, actor.organizationId, companyId, entry.periodId, entry.date, entry.sourceType, entry.sourceId, entry.sourceEvent, entry.idempotencyKey, entry.fingerprint, entry.description, entry.reversesId, entry.baseCurrency, actor.userId)
-    const insert = db.prepare(`INSERT INTO journal_lines(id,journal_id,organization_id,company_id,line_no,account_id,debit_minor,credit_minor,
-   currency,transaction_minor,rate_numerator,rate_denominator,rate_date,rate_source,memo) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+    db.prepare(`INSERT INTO journal_entries(id,company_id,period_id,posted_on,source_type,source_id,source_event,idempotency_key,fingerprint,description,reverses_id,base_currency,posted_by) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(entry.id, companyId, entry.periodId, entry.date, entry.sourceType, entry.sourceId, entry.sourceEvent, entry.idempotencyKey, entry.fingerprint, entry.description, entry.reversesId, entry.baseCurrency, actor.userId)
+    const insert = db.prepare(`INSERT INTO journal_lines(id,journal_id,company_id,line_no,account_id,debit_minor,credit_minor,currency,transaction_minor,rate_numerator,rate_denominator,rate_date,rate_source,memo) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i]!
-      insert.run(randomUUID(), entry.id, actor.organizationId, companyId, i + 1, line.accountId, line.debit, line.credit, line.currency, line.transaction, line.rateNumerator, line.rateDenominator, line.rateDate, line.rateSource, line.memo)
+      insert.run(randomUUID(), entry.id, companyId, i + 1, line.accountId, line.debit, line.credit, line.currency, line.transaction, line.rateNumerator, line.rateDenominator, line.rateDate, line.rateSource, line.memo)
     }
     // SQLite posting trigger uses exact bigint_total, not lossy SUM or TOTAL.
     db.prepare('UPDATE journal_entries SET status=? WHERE id=? AND status=?').run('posted', entry.id, 'staging')
@@ -173,7 +174,7 @@ export function createPostingService(ctx: AccountingContext) {
     const prior = byIdempotency(actor, input.companyId, idempotencyKey, fingerprint)
     if (prior)
       return { ...prior, replayed: true }
-    const sourceAlready = db.prepare('SELECT 1 FROM journal_entries WHERE organization_id=? AND company_id=? AND source_type=? AND source_id=? AND source_event=?').get(actor.organizationId, input.companyId, sourceType, sourceId, sourceEvent)
+    const sourceAlready = db.prepare('SELECT 1 FROM journal_entries WHERE company_id=? AND source_type=? AND source_id=? AND source_event=?').get(actor.companyId, sourceType, sourceId, sourceEvent)
     if (sourceAlready)
       return conflict('Source accounting event has already been posted')
     const period = requirePeriod(actor, input.companyId, postedOn)
@@ -182,14 +183,14 @@ export function createPostingService(ctx: AccountingContext) {
     for (const line of prepared) {
       let account = cache.get(line.accountId)
       if (!account) {
-        account = rowAs<AccountRow>(db.prepare('SELECT id,code,name,category,postable,active,parent_id FROM ledger_accounts WHERE id=? AND organization_id=? AND company_id=?').get(line.accountId, actor.organizationId, input.companyId))
+        account = rowAs<AccountRow>(db.prepare('SELECT id,code,name,category,postable,active,parent_id FROM ledger_accounts WHERE id=? AND company_id=?').get(line.accountId, actor.companyId))
         if (!account)
           return missing()
         cache.set(line.accountId, account)
       }
       if (!account.active || !account.postable)
         return invalid('Journal line account must be active and postable')
-      if (!db.prepare('SELECT 1 FROM accounting_currencies WHERE organization_id=? AND company_id=? AND code=?').get(actor.organizationId, input.companyId, line.currency))
+      if (!db.prepare('SELECT 1 FROM accounting_currencies WHERE company_id=? AND code=?').get(actor.companyId, line.currency))
         return invalid('Transaction currency is not registered for this company')
       debits += line.debit
       credits += line.credit
@@ -232,7 +233,7 @@ export function createPostingService(ctx: AccountingContext) {
     const prior = byIdempotency(actor, input.companyId, idempotencyKey, fingerprint)
     if (prior)
       return { ...prior, replayed: true }
-    if (db.prepare('SELECT 1 FROM journal_entries WHERE organization_id=? AND company_id=? AND reverses_id=?').get(actor.organizationId, input.companyId, journalId))
+    if (db.prepare('SELECT 1 FROM journal_entries WHERE company_id=? AND reverses_id=?').get(actor.companyId, journalId))
       return conflict('Journal already reversed')
     const period = requirePeriod(actor, input.companyId, date)
     const originalLines = loadLines(actor, input.companyId, journalId)

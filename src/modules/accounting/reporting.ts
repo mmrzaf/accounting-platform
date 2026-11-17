@@ -25,16 +25,16 @@ export function createReportingService(ctx: AccountingContext) {
     const book = bookFor(actor, input.companyId)
     const through = input.through === undefined ? null : dateOnly(input.through)
     const accounts = rowsAs<AccountRow>(db.prepare(`SELECT id,code,name,category,postable,active,parent_id FROM ledger_accounts
-   WHERE organization_id=? AND company_id=? ORDER BY code`).all(actor.organizationId, input.companyId))
+   WHERE company_id=? ORDER BY code`).all(actor.companyId))
     const sums = new Map<string, {
       debit: bigint
       credit: bigint
     }>()
     const stmt = db.prepare(`SELECT l.account_id,l.debit_minor,l.credit_minor FROM journal_lines l
-   JOIN journal_entries j ON j.id=l.journal_id AND j.organization_id=l.organization_id AND j.company_id=l.company_id
-   WHERE l.organization_id=? AND l.company_id=? AND j.status='posted' AND (? IS NULL OR j.posted_on<=?)`)
+   JOIN journal_entries j ON j.id=l.journal_id AND j.company_id=l.company_id
+   WHERE l.company_id=? AND j.status='posted' AND (? IS NULL OR j.posted_on<=?)`)
     stmt.setReadBigInts(true)
-    for (const raw of stmt.iterate(actor.organizationId, input.companyId, through, through)) {
+    for (const raw of stmt.iterate(actor.companyId, through, through)) {
       const row = rowAs<AmountRow>(raw)!
       const sum = sums.get(row.account_id) ?? { debit: 0n, credit: 0n }
       sum.debit += row.debit_minor
@@ -70,12 +70,12 @@ export function createReportingService(ctx: AccountingContext) {
     const limit = input.limit ?? 100, offset = input.offset ?? 0
     if (!Number.isInteger(limit) || limit < 1 || limit > 500 || !Number.isInteger(offset) || offset < 0 || offset > 1000000)
       return invalid('Invalid ledger pagination')
-    const account = rowAs<AccountRow>(db.prepare('SELECT id,code,name,category,postable,active,parent_id FROM ledger_accounts WHERE id=? AND organization_id=? AND company_id=?').get(accountId, actor.organizationId, input.companyId))
+    const account = rowAs<AccountRow>(db.prepare('SELECT id,code,name,category,postable,active,parent_id FROM ledger_accounts WHERE id=? AND company_id=?').get(accountId, actor.companyId))
     if (!account)
       return missing()
     const stmt = db.prepare(`SELECT l.id,l.journal_id,l.account_id,l.line_no,l.debit_minor,l.credit_minor,j.posted_on,j.source_type,j.source_id,j.description
-   FROM journal_lines l JOIN journal_entries j ON j.id=l.journal_id AND j.organization_id=l.organization_id AND j.company_id=l.company_id
-   WHERE l.organization_id=? AND l.company_id=? AND l.account_id=? AND j.status='posted'
+   FROM journal_lines l JOIN journal_entries j ON j.id=l.journal_id AND j.company_id=l.company_id
+   WHERE l.company_id=? AND l.account_id=? AND j.status='posted'
    AND (? IS NULL OR j.posted_on<=?) ORDER BY j.posted_on,j.entry_number,l.line_no`)
     stmt.setReadBigInts(true)
     let balance = 0n, opening = 0n, matching = 0
@@ -90,7 +90,7 @@ export function createReportingService(ctx: AccountingContext) {
       creditMinor: string
       balanceMinor: string
     }[] = []
-    for (const raw of stmt.iterate(actor.organizationId, input.companyId, accountId, through, through)) {
+    for (const raw of stmt.iterate(actor.companyId, accountId, through, through)) {
       const line = rowAs<LedgerRow>(raw)!
       if (from !== null && line.posted_on < from) {
         opening += line.debit_minor - line.credit_minor

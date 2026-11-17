@@ -13,10 +13,10 @@ export function createBookService(ctx: AccountingContext) {
     const tz = timezone(input.timezone)
     return transaction(db, () => {
       const actor = actorFor(input, 'accounting.configure')
-      if (db.prepare('SELECT 1 FROM accounting_books WHERE organization_id=? AND company_id=?').get(actor.organizationId, input.companyId))
+      if (db.prepare('SELECT 1 FROM accounting_books WHERE company_id=?').get(actor.companyId))
         return conflict('Accounting book is already configured')
-      db.prepare('INSERT INTO accounting_books(organization_id,company_id,base_currency,timezone) VALUES(?,?,?,?)').run(actor.organizationId, input.companyId, currency, tz)
-      db.prepare('INSERT INTO accounting_currencies(organization_id,company_id,code,decimals,name) VALUES(?,?,?,?,?)').run(actor.organizationId, input.companyId, currency, decimals, currency)
+      db.prepare('INSERT INTO accounting_books(company_id,base_currency,timezone) VALUES(?,?,?)').run(input.companyId, currency, tz)
+      db.prepare('INSERT INTO accounting_currencies(company_id,code,decimals,name) VALUES(?,?,?,?)').run(input.companyId, currency, decimals, currency)
       audit(actor, input.companyId, 'accounting.book.setup', 'company', input.companyId, { baseCurrency: currency, decimals })
       return { companyId: input.companyId, baseCurrency: currency, baseDecimals: decimals, timezone: tz }
     })
@@ -28,9 +28,9 @@ export function createBookService(ctx: AccountingContext) {
     return transaction(db, () => {
       const actor = actorFor(input, 'accounting.configure')
       bookFor(actor, input.companyId)
-      if (db.prepare('SELECT 1 FROM accounting_currencies WHERE organization_id=? AND company_id=? AND code=?').get(actor.organizationId, input.companyId, currency))
+      if (db.prepare('SELECT 1 FROM accounting_currencies WHERE company_id=? AND code=?').get(actor.companyId, currency))
         return conflict('Currency already configured')
-      db.prepare('INSERT INTO accounting_currencies(organization_id,company_id,code,decimals,name) VALUES(?,?,?,?,?)').run(actor.organizationId, input.companyId, currency, decimals, name)
+      db.prepare('INSERT INTO accounting_currencies(company_id,code,decimals,name) VALUES(?,?,?,?)').run(input.companyId, currency, decimals, name)
       audit(actor, input.companyId, 'accounting.currency.add', 'currency', currency)
       return { code: currency, decimals, name }
     })
@@ -45,7 +45,7 @@ export function createBookService(ctx: AccountingContext) {
       code: string
       name: string
       decimals: number
-    }>(db.prepare('SELECT code,name,decimals FROM accounting_currencies WHERE organization_id=? AND company_id=? ORDER BY code').all(actor.organizationId, input.companyId))
+    }>(db.prepare('SELECT code,name,decimals FROM accounting_currencies WHERE company_id=? ORDER BY code').all(actor.companyId))
   }
   function addPeriod(input: PeriodInput) {
     const periodCode = key(input.code, 'Period code')
@@ -55,13 +55,13 @@ export function createBookService(ctx: AccountingContext) {
     return transaction(db, () => {
       const actor = actorFor(input, 'accounting.configure')
       bookFor(actor, input.companyId)
-      const already = db.prepare('SELECT 1 FROM fiscal_periods WHERE organization_id=? AND company_id=? AND starts_on<=? AND ends_on>=?').get(actor.organizationId, input.companyId, end, start)
+      const already = db.prepare('SELECT 1 FROM fiscal_periods WHERE company_id=? AND starts_on<=? AND ends_on>=?').get(actor.companyId, end, start)
       if (already)
         return conflict('Fiscal period date ranges cannot overlap')
-      if (db.prepare('SELECT 1 FROM fiscal_periods WHERE organization_id=? AND company_id=? AND code=?').get(actor.organizationId, input.companyId, periodCode))
+      if (db.prepare('SELECT 1 FROM fiscal_periods WHERE company_id=? AND code=?').get(actor.companyId, periodCode))
         return conflict('Period code already exists')
       const id = randomUUID()
-      db.prepare('INSERT INTO fiscal_periods(id,organization_id,company_id,code,starts_on,ends_on) VALUES(?,?,?,?,?,?)').run(id, actor.organizationId, input.companyId, periodCode, start, end)
+      db.prepare('INSERT INTO fiscal_periods(id,company_id,code,starts_on,ends_on) VALUES(?,?,?,?,?)').run(id, input.companyId, periodCode, start, end)
       audit(actor, input.companyId, 'accounting.period.create', 'fiscal_period', id)
       return { id, code: periodCode, startsOn: start, endsOn: end, status: 'open' as const }
     })
@@ -73,12 +73,12 @@ export function createBookService(ctx: AccountingContext) {
     return transaction(db, () => {
       const actor = actorFor(input, 'accounting.close')
       bookFor(actor, input.companyId)
-      const period = rowAs<PeriodRow>(db.prepare('SELECT id,code,starts_on,ends_on,status FROM fiscal_periods WHERE id=? AND organization_id=? AND company_id=?').get(input.periodId, actor.organizationId, input.companyId))
+      const period = rowAs<PeriodRow>(db.prepare('SELECT id,code,starts_on,ends_on,status FROM fiscal_periods WHERE id=? AND company_id=?').get(input.periodId, actor.companyId))
       if (!period)
         return missing()
       if (period.status === input.status)
         return { ...period, changed: false }
-      db.prepare('UPDATE fiscal_periods SET status=? WHERE id=? AND organization_id=? AND company_id=?').run(input.status, input.periodId, actor.organizationId, input.companyId)
+      db.prepare('UPDATE fiscal_periods SET status=? WHERE id=? AND company_id=?').run(input.status, input.periodId, actor.companyId)
       audit(actor, input.companyId, input.status === 'closed' ? 'accounting.period.close' : 'accounting.period.reopen', 'fiscal_period', input.periodId)
       return { ...period, status: input.status, changed: true }
     })
@@ -89,7 +89,7 @@ export function createBookService(ctx: AccountingContext) {
   }) {
     const actor = actorFor(input, 'accounting.read')
     bookFor(actor, input.companyId)
-    return rowsAs<PeriodRow>(db.prepare('SELECT id,code,starts_on,ends_on,status FROM fiscal_periods WHERE organization_id=? AND company_id=? ORDER BY starts_on').all(actor.organizationId, input.companyId))
+    return rowsAs<PeriodRow>(db.prepare('SELECT id,code,starts_on,ends_on,status FROM fiscal_periods WHERE company_id=? ORDER BY starts_on').all(actor.companyId))
   }
   function getBook(input: {
     sessionToken: string

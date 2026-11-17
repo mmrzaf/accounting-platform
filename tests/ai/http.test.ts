@@ -16,8 +16,8 @@ test('AI HTTP adapter uses the existing session, CSRF and same-origin security m
   applyMigrations(db,migrations)
   try {
     const identity = createIdentityService(db)
-    const boot = await identity.bootstrapOrganization({slug:'api-ai',name:'API',adminUsername:'owner',adminDisplayName:'Owner',password})
-    const {token} = await identity.login({organizationSlug:'api-ai',username:'owner',password})
+    const boot = await identity.bootstrapCompany({name:'API',adminUsername:'owner',adminDisplayName:'Owner',password})
+    const {token} = await identity.login({username:'owner',password})
     const ai = createAiService(db,{masterKey:randomBytes(32),fetcher:async() => new Response(JSON.stringify({choices:[{message:{content:'Helpful answer'},finish_reason:'stop'}]}),{status:200})})
     const handler = createAiHttpHandler(identity,ai)
     const authHeaders = { cookie:`accounting_session=${token}`, 'content-type':'application/json', origin:'http://localhost',

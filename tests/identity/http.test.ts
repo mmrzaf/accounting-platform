@@ -17,7 +17,7 @@ async function withHandler<T>(fn: (handler: IdentityHandler, service: IdentitySe
   const db = openDatabase(':memory:')
   applyMigrations(db, migrations)
   const svc = createIdentityService(db)
-  await svc.bootstrapOrganization({ slug: 'acme', name: 'ACME Ltd', adminUsername: 'admin', adminDisplayName: 'Admin', password })
+  await svc.bootstrapCompany({ name: 'ACME Ltd', adminUsername: 'admin', adminDisplayName: 'Admin', password })
   try { return await fn(createIdentityHttpHandler(svc), svc) } finally { db.close() }
 }
 function req(path: string, { method = 'GET', body, cookie, csrf, origin, extra = {}, base = 'http://localhost:3000' }: RequestOptions = {}) {
@@ -30,7 +30,7 @@ function req(path: string, { method = 'GET', body, cookie, csrf, origin, extra =
   })
 }
 async function signedIn(handler: IdentityHandler) {
-  const login = await handler(req('/api/auth/login', { method: 'POST', body: { organizationSlug: 'acme', username: 'admin', password }, origin: 'http://localhost:3000' }))
+  const login = await handler(req('/api/auth/login', { method: 'POST', body: { username: 'admin', password }, origin: 'http://localhost:3000' }))
   assert.equal(login.status, 200)
   const data = await readJson(login)
   assert.equal(data.token, undefined)
@@ -56,33 +56,31 @@ test('HTTP rejects cross origin, insecure remote, oversized JSON and unauthorize
   const { cookie, csrf } = await signedIn(handler)
   assert.equal((await handler(req('/api/auth/session'))).status, 401)
   assert.equal((await handler(req('/api/users', { cookie }))).status, 200)
-  assert.equal((await handler(req('/api/companies', { cookie, base: 'http://lan.example.com' }))).status, 403)
+  assert.equal((await handler(req('/api/company', { cookie, base: 'http://lan.example.com' }))).status, 403)
   assert.equal((await handler(req('/api/users', { method: 'POST', cookie, csrf, origin: 'https://evil.example', body: { username: 'forged' } }))).status, 403)
   assert.equal((await handler(req('/api/users', { method: 'POST', cookie, csrf, extra: { 'sec-fetch-site': 'cross-site' }, body: {} }))).status, 403)
   assert.equal((await handler(req('/api/users', { method: 'POST', cookie, csrf, body: { username: 'attacker', displayName: 'Attacker', password: 'p'.repeat(17000) } }))).status, 400)
   assert.equal((await handler(req('/api/private', { cookie }))).status, 404)
-  const secure = await handler(req('/api/auth/login', { base: 'https://example.test', method: 'POST', body: { organizationSlug: 'acme', username: 'admin', password } }))
+  const secure = await handler(req('/api/auth/login', { base: 'https://example.test', method: 'POST', body: { username: 'admin', password } }))
   assert.match(secure.headers.get('set-cookie')!, /^__Host-accounting_session=.*; Secure$/u)
 }))
 
-test('HTTP mutations enforce server authorization, not attacker supplied actor scope', async () => withHandler(async (handler, svc) => {
+test('HTTP mutations enforce server authorization, not attacker supplied actor scope', async () => withHandler(async (handler) => {
   const admin = await signedIn(handler)
   const user = await handler(req('/api/users', { method: 'POST', cookie: admin.cookie, csrf: admin.csrf, body: { username: 'employee', displayName: 'Employee', password } }))
   assert.equal(user.status, 201)
   const created = await readJson(user)
   assert.equal(created.password, undefined)
-  const employeeLogin = await handler(req('/api/auth/login', { method: 'POST', body: { organizationSlug: 'acme', username: 'employee', password } }))
+  const employeeLogin = await handler(req('/api/auth/login', { method: 'POST', body: { username: 'employee', password } }))
   const employee = { cookie: employeeLogin.headers.get('set-cookie')!.split(';')[0]!, csrf: (await readJson(employeeLogin)).csrfToken }
   assert.equal((await handler(req('/api/users', { cookie: employee.cookie }))).status, 403)
-  assert.equal((await handler(req('/api/companies', { cookie: employee.cookie }))).status, 200)
-  assert.deepEqual((await readJson(await handler(req('/api/companies', { cookie: employee.cookie })))).items, [])
+  assert.equal((await handler(req('/api/company', { cookie: employee.cookie }))).status, 403)
   const roles = await readJson(await handler(req('/api/roles', { cookie: admin.cookie })))
-  const company = svc.listCompanies({ sessionToken: admin.cookie.split('=')[1]! })[0]
   const reader = roles.items.find(r => r.code === 'company-reader')
-  const assigned = await handler(req('/api/roles/assign', { method: 'POST', cookie: admin.cookie, csrf: admin.csrf, body: { userId: created.id, roleId: reader!.id, companyId: company!.id } }))
+  const assigned = await handler(req('/api/roles/assign', { method: 'POST', cookie: admin.cookie, csrf: admin.csrf, body: { userId: created.id, roleId: reader!.id, companyId: 'forged-company-id' } }))
   assert.equal(assigned.status, 200)
-  assert.equal((await readJson(await handler(req('/api/companies', { cookie: employee.cookie })))).items.length, 1)
-  assert.equal((await handler(req('/api/roles/assign', { method: 'POST', cookie: employee.cookie, csrf: employee.csrf, body: { userId: created.id, roleId: reader!.id, companyId: company!.id } }))).status, 403)
+  assert.equal((await handler(req('/api/company', { cookie: employee.cookie }))).status, 200)
+  assert.equal((await handler(req('/api/roles/assign', { method: 'POST', cookie: employee.cookie, csrf: employee.csrf, body: { userId: created.id, roleId: reader!.id, companyId: 'forged-company-id' } }))).status, 403)
   // Caller-supplied sessionToken must never override the authenticated cookie.
   assert.equal((await handler(req('/api/users', { method: 'POST', cookie: employee.cookie, csrf: employee.csrf, body: { username: 'escalated', displayName: 'Escalated', password, sessionToken: admin.cookie.split('=')[1]! } }))).status, 403)
   assert.equal((await handler(req('/api/users', { method: 'PATCH', cookie: admin.cookie, csrf: admin.csrf, body: { status: 'disabled' } }))).status, 404)
@@ -95,28 +93,28 @@ test('HTTP mutations enforce server authorization, not attacker supplied actor s
 test('admin password recovery endpoints require permission and revoke the old user session', async () => withHandler(async handler => {
   const admin = await signedIn(handler)
   const created = await readJson(await handler(req('/api/users', { method: 'POST', cookie: admin.cookie, csrf: admin.csrf, body: { username: 'clerk', displayName: 'Clerk', password } })))
-  const clerkLogin = await handler(req('/api/auth/login', { method: 'POST', body: { organizationSlug: 'acme', username: 'clerk', password } }))
+  const clerkLogin = await handler(req('/api/auth/login', { method: 'POST', body: { username: 'clerk', password } }))
   const clerk = { cookie: clerkLogin.headers.get('set-cookie')!.split(';')[0]!, csrf: (await readJson(clerkLogin)).csrfToken }
   const denied = await handler(req(`/api/users/${created.id}/reset-password`, { method: 'POST', cookie: clerk.cookie, csrf: clerk.csrf, body: { newPassword: 'newly reset password 2026' } }))
   assert.equal(denied.status, 403)
   const reset = await handler(req(`/api/users/${created.id}/reset-password`, { method: 'POST', cookie: admin.cookie, csrf: admin.csrf, body: { newPassword: 'newly reset password 2026' } }))
   assert.equal(reset.status, 200)
   assert.equal((await handler(req('/api/auth/session', { cookie: clerk.cookie }))).status, 401)
-  const current = await handler(req('/api/auth/login', { method: 'POST', body: { organizationSlug: 'acme', username: 'clerk', password: 'newly reset password 2026' } }))
+  const current = await handler(req('/api/auth/login', { method: 'POST', body: { username: 'clerk', password: 'newly reset password 2026' } }))
   assert.equal(current.status, 200)
 }))
 
 test('HTTP validation rejects malformed record inputs and preserves significant password whitespace', async () => withHandler(async handler => {
   const admin = await signedIn(handler)
-  const invalidRole = await handler(req('/api/roles', { method: 'POST', cookie: admin.cookie, csrf: admin.csrf, body: { scope: 'administrator', code: 'reader', name: 'Reader', permissions: [] } }))
+  const invalidRole = await handler(req('/api/roles', { method: 'POST', cookie: admin.cookie, csrf: admin.csrf, body: { code: 'reader', name: 'Reader', permissions: [] } }))
   assert.equal(invalidRole.status, 400)
-  const invalidCompany = await handler(req('/api/companies', { method: 'POST', cookie: admin.cookie, csrf: admin.csrf, body: { code: 123, name: 'Example' } }))
+  const invalidCompany = await handler(req('/api/company', { method: 'PATCH', cookie: admin.cookie, csrf: admin.csrf, body: { name: 123 } }))
   assert.equal(invalidCompany.status, 400)
   const exactPassword = '  significant whitespace in password  '
   const user = await handler(req('/api/users', { method: 'POST', cookie: admin.cookie, csrf: admin.csrf, body: { username: 'spaceuser', displayName: 'Space User', password: exactPassword } }))
   assert.equal(user.status, 201)
-  const success = await handler(req('/api/auth/login', { method: 'POST', body: { organizationSlug: 'acme', username: 'spaceuser', password: exactPassword } }))
+  const success = await handler(req('/api/auth/login', { method: 'POST', body: { username: 'spaceuser', password: exactPassword } }))
   assert.equal(success.status, 200)
-  const wrong = await handler(req('/api/auth/login', { method: 'POST', body: { organizationSlug: 'acme', username: 'spaceuser', password: exactPassword.trim() } }))
+  const wrong = await handler(req('/api/auth/login', { method: 'POST', body: { username: 'spaceuser', password: exactPassword.trim() } }))
   assert.equal(wrong.status, 401)
 }))

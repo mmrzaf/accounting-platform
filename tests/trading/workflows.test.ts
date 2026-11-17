@@ -22,8 +22,8 @@ async function fixture<T>(fn: (f: Awaited<ReturnType<typeof makeFixture>>) => T 
 }
 async function makeFixture(db: DatabaseSync) {
   const identity = createIdentityService(db), accounting = createAccountingService(db), trade = createTradingService(db)
-  const boot = await identity.bootstrapOrganization({ slug: 'trading', name: 'Trading', adminUsername: 'owner', adminDisplayName: 'Owner', password })
-  const { token } = await identity.login({ organizationSlug: 'trading', username: 'owner', password })
+  const boot = await identity.bootstrapCompany({ name: 'Trading', adminUsername: 'owner', adminDisplayName: 'Owner', password })
+  const { token } = await identity.login({ username: 'owner', password })
   const scope = { sessionToken: token, companyId: boot.company.id }
   function initialize(s: typeof scope) {
     accounting.setupBook({ ...s, baseCurrency: 'IRR', baseDecimals: 0, timezone: 'Asia/Tehran' })
@@ -128,8 +128,8 @@ test('overallocations, wrong party, wrong direction and direct SQL constraints f
   const out = trade.postPayment({ ...scope, id: trade.createPayment(payment('pay-out')).id })
   reject(() => trade.allocatePayment({ ...scope, invoiceId: invoice.id, paymentId: out.id, amountMinor: '1', requestKey: 'bad4' }), 'CONFLICT')
   reject(() => trade.allocatePayment({ ...scope, invoiceId: purchaseInvoice.id, paymentId: pay.id, amountMinor: '1', requestKey: 'bad5' }), 'CONFLICT')
-  assert.throws(() => db.prepare(`INSERT INTO payment_allocations(id,organization_id,company_id,invoice_id,payment_id,amount_minor,request_key,fingerprint)
-       VALUES(?,?,?,?,?,?,?,?)`).run('direct', f.boot.organization.id, scope.companyId, invoice.id, pay.id, 20000001, 'direct-key', 'hash'), /Overallocation/u)
+  assert.throws(() => db.prepare(`INSERT INTO payment_allocations(id,company_id,invoice_id,payment_id,amount_minor,request_key,fingerprint)
+       VALUES(?,?,?,?,?,?,?)`).run('direct', scope.companyId, invoice.id, pay.id, 20000001, 'direct-key', 'hash'), /Overallocation/u)
   assert.equal(trade.listAllocations({ ...scope, invoiceId: invoice.id }).length, 0)
   assert.equal(accounts.bank.length > 0 && ali.id.length > 0, true)
 }))
@@ -176,30 +176,26 @@ test('closed period causes entire invoice posting to roll back; opening a later 
   assert.equal(accounting.trialBalance(scope).totalDebitMinor, '0')
 }))
 
-test('company and organization isolation, permission restrictions and shared contacts', async () => fixture(async f => {
-  const { identity, trade, scope, accounts, initialize, boot, db } = f
-  const secondCompany = identity.createCompany({ sessionToken: scope.sessionToken, code: 'second', name: 'Second company' })
-  const secondScope = { ...scope, companyId: secondCompany.id }
+test('companies have isolated contacts, accounts, and invoice numbers', async () => fixture(async f => {
+  const { identity, trade, scope, accounts, initialize, db } = f
+  const separate = await identity.bootstrapCompany({name:'Second business',adminUsername:'other-owner',adminDisplayName:'Other Owner',password})
+  const otherLogin = await identity.login({username:'other-owner',password})
+  const secondScope = {sessionToken:otherLogin.token,companyId:separate.company.id}
   const accounts2 = initialize(secondScope)
-  const contactFromA = trade.createContact({ ...scope, displayName: 'Shared supplier' })
-  assert.equal(trade.getContact({ ...secondScope, contactId: contactFromA.id }).displayName, 'Shared supplier')
-  const doc = trade.postInvoice({ ...secondScope, id: trade.createInvoice({ ...secondScope, kind: 'sale', partyId: contactFromA.id,
-    controlAccountId: accounts2.ar, description: 'Second company', issuedOn: '2026-11-17', requestKey: 'same-key',
-    lines: [{ itemKind: 'service', description: 'Service', quantity: '1', unitPriceMinor: '500', accountId: accounts2.revenue }] }).id })
-  reject(() => trade.getInvoice({ ...scope, invoiceId: doc.id }), 'NOT_FOUND')
-  reject(() => trade.allocatePayment({ ...scope, invoiceId: doc.id, paymentId: doc.id, amountMinor: '1', requestKey: 'bad' }), 'NOT_FOUND')
-  const local = trade.createInvoice({ ...scope, kind: 'sale', partyId: contactFromA.id, controlAccountId: accounts.ar,
-    issuedOn: '2026-11-17', description: 'First company', requestKey: 'same-key',
-    lines: [{ itemKind: 'service', description: 'Service', quantity: '1', unitPriceMinor: '500', accountId: accounts.revenue }] })
-  assert.notEqual(doc.id, local.id)
-  assert.equal(doc.number, 'S-000001')
-  assert.equal(trade.postInvoice({ ...scope, id: local.id }).number, 'S-000001')
-  const other = await identity.bootstrapOrganization({ slug: 'other', name: 'Other org', adminUsername: 'owner', adminDisplayName: 'Owner', password })
-  const otherSession = await identity.login({ organizationSlug: 'other', username: 'owner', password })
-  reject(() => trade.getContact({ sessionToken: otherSession.token, companyId: other.company.id, contactId: contactFromA.id }), 'NOT_FOUND')
-  reject(() => trade.getInvoice({ sessionToken: otherSession.token, companyId: other.company.id, invoiceId: doc.id }), 'NOT_FOUND')
-  assert.ok(boot.organization.id)
-  assert.equal(checkDatabase(db).ok, true)
+  const contactFromA = trade.createContact({...scope,displayName:'Private contact'})
+  reject(()=>trade.getContact({...secondScope,contactId:contactFromA.id}),'NOT_FOUND')
+  const otherContact = trade.createContact({...secondScope,displayName:'Other contact'})
+  const doc = trade.postInvoice({...secondScope,id:trade.createInvoice({...secondScope,kind:'sale',partyId:otherContact.id,
+    controlAccountId:accounts2.ar,description:'Second company',issuedOn:'2026-11-17',requestKey:'same-key',
+    lines:[{itemKind:'service',description:'Service',quantity:'1',unitPriceMinor:'500',accountId:accounts2.revenue}]}).id})
+  reject(()=>trade.getInvoice({...scope,invoiceId:doc.id}),'NOT_FOUND')
+  const own = trade.postInvoice({...scope,id:trade.createInvoice({...scope,kind:'sale',partyId:contactFromA.id,
+    controlAccountId:accounts.ar,issuedOn:'2026-11-17',description:'First company',requestKey:'same-key',
+    lines:[{itemKind:'service',description:'Service',quantity:'1',unitPriceMinor:'500',accountId:accounts.revenue}]}).id})
+  assert.equal(own.number,'S-000001')
+  assert.equal(doc.number,'S-000001')
+  reject(()=>trade.getInvoice({...secondScope,invoiceId:own.id}),'NOT_FOUND')
+  assert.equal(checkDatabase(db).ok,true)
 }))
 
 test('contact operations are retry-safe when keyed, editable with revision checks, and archive-aware', async () => fixture(f => {
@@ -222,8 +218,8 @@ test('reader can inspect but cannot mutate or post trading documents', async () 
   const posted = trade.postInvoice({ ...scope, id: trade.createInvoice(sale('sale-1')).id })
   const user = await identity.createUser({ sessionToken: scope.sessionToken, username: 'reader', displayName: 'Reader', password })
   const role = identity.listRoles({ sessionToken: scope.sessionToken }).find(r => r.code === 'company-reader')!
-  identity.assignRole({ sessionToken: scope.sessionToken, roleId: role.id, userId: user.id, companyId: scope.companyId })
-  const { token } = await identity.login({ organizationSlug: 'trading', username: 'reader', password })
+  identity.assignRole({ sessionToken: scope.sessionToken, roleId: role.id, userId: user.id})
+  const { token } = await identity.login({ username: 'reader', password })
   const asReader = { sessionToken: token, companyId: scope.companyId }
   assert.equal(trade.getInvoice({ ...asReader, invoiceId: posted.id }).status, 'posted')
   assert.equal(trade.listContacts(asReader).length, 1)
@@ -271,14 +267,50 @@ test('direct journal interface cannot impersonate invoice posting', async () => 
 test('a sales-only user can prepare a draft but cannot bypass accounting posting rights', async () => fixture(async f => {
   const { identity, trade, scope, sale, db } = f
   const user = await identity.createUser({ sessionToken: scope.sessionToken, username: 'clerk', displayName: 'Sales clerk', password })
-  const role = identity.createRole({ sessionToken: scope.sessionToken, scope: 'company', code: 'sales-clerk', name: 'Sales clerk',
+  const role = identity.createRole({ sessionToken: scope.sessionToken, code: 'sales-clerk', name: 'Sales clerk',
     permissions: ['company.read', 'sales.read', 'sales.manage', 'contacts.read'] })
-  identity.assignRole({ sessionToken: scope.sessionToken, roleId: role.id, userId: user.id, companyId: scope.companyId })
-  const { token } = await identity.login({ organizationSlug: 'trading', username: 'clerk', password })
+  identity.assignRole({ sessionToken: scope.sessionToken, roleId: role.id, userId: user.id})
+  const { token } = await identity.login({ username: 'clerk', password })
   const clerkScope = { sessionToken: token, companyId: scope.companyId }
   const draft = trade.createInvoice({ ...sale('clerk-sale'), ...clerkScope })
   assert.equal(draft.status, 'draft')
   reject(() => trade.postInvoice({ ...clerkScope, id: draft.id }), 'PERMISSION_DENIED')
   assert.equal(db.prepare('SELECT count(*) AS n FROM journal_entries').get()?.['n'], 0)
   assert.equal(trade.postInvoice({ ...scope, id: draft.id }).number, 'S-000001')
+}))
+
+test('single-action invoice and payment commands post atomically with consistent allocation', async () => fixture(f => {
+  const { accounting, trade, scope, accounts, sale, receipt, db } = f
+  accounting.configurePostingDefaults({ ...scope, receivablesId: accounts.ar, payablesId: accounts.ap,
+    revenueId: accounts.revenue, expenseId: accounts.expense, cashId: accounts.bank })
+  assert.deepEqual(accounting.getPostingDefaults(scope), { receivablesId: accounts.ar, payablesId: accounts.ap,
+    revenueId: accounts.revenue, expenseId: accounts.expense, cashId: accounts.bank })
+  const posted = trade.recordInvoice(sale('quick-sale'))
+  assert.equal(posted.status, 'posted')
+  assert.equal(posted.number, 'S-000001')
+  assert.equal(trade.recordInvoice(sale('quick-sale')).id, posted.id)
+  const result = trade.recordPayment({ ...receipt('quick-receipt'), invoiceId: posted.id, allocationMinor: '20000000' })
+  assert.equal(result.payment.status, 'posted')
+  assert.equal(result.payment.number, 'R-000001')
+  assert.ok(result.allocation)
+  assert.equal(trade.getInvoice({ ...scope, invoiceId: posted.id }).outstandingMinor, '30000000')
+  assert.equal(trade.getPayment({ ...scope, paymentId: result.payment.id }).unallocatedMinor, '0')
+  const replay = trade.recordPayment({ ...receipt('quick-receipt'), invoiceId: posted.id, allocationMinor: '20000000' })
+  assert.equal(replay.payment.id, result.payment.id)
+  assert.equal(replay.allocation?.id, result.allocation?.id)
+  assert.equal(db.prepare('SELECT count(*) AS n FROM journal_entries').get()?.['n'], 2)
+  assert.equal(checkDatabase(db).ok, true)
+}))
+
+test('failed composite posting does not leave partial payments, journals or audit events', async () => fixture(f => {
+  const { trade, scope, sale, receipt, db } = f
+  const posted = trade.recordInvoice(sale('composite-invoice'))
+  const before = db.prepare('SELECT count(*) AS n FROM journal_entries').get()?.['n']
+  const beforePayments = db.prepare('SELECT count(*) AS n FROM trade_payments').get()?.['n']
+  const beforeAudit = db.prepare('SELECT count(*) AS n FROM security_audit').get()?.['n']
+  reject(() => trade.recordPayment({ ...receipt('rollback-receipt'), invoiceId: posted.id, allocationMinor: '99999999' }), 'INVALID_INPUT')
+  assert.equal(db.prepare('SELECT count(*) AS n FROM journal_entries').get()?.['n'], before)
+  assert.equal(db.prepare('SELECT count(*) AS n FROM trade_payments').get()?.['n'], beforePayments)
+  assert.equal(db.prepare('SELECT count(*) AS n FROM security_audit').get()?.['n'], beforeAudit)
+  assert.equal(trade.getInvoice({ ...scope, invoiceId: posted.id }).outstandingMinor, posted.totalMinor)
 }))

@@ -65,19 +65,18 @@ export function createContactImportService(db: DatabaseSync, { clock = () => new
     if (batchKey.length > 110) return invalid('Batch key must be at most 110 characters')
     if (input.dryRun !== undefined && typeof input.dryRun !== 'boolean') return invalid('dryRun must be a boolean')
     const actor = identity.requireActor(input.sessionToken, 'contacts.manage', input.companyId)
-    const prefix = `import.${createHash('sha256').update(`${actor.organizationId}:${input.companyId}:${batchKey}`).digest('hex').slice(0,24)}`
+    const prefix = `import.${createHash('sha256').update(`${actor.companyId}:${input.companyId}:${batchKey}`).digest('hex').slice(0,24)}`
     try {
       return transaction(db, () => {
         const prior = rowAs<{ fingerprint: string; row_count: number }>(db.prepare(`SELECT fingerprint,row_count FROM contact_import_batches
-          WHERE organization_id=? AND company_id=? AND batch_key=?`).get(actor.organizationId, input.companyId, batchKey))
+          WHERE company_id=? AND batch_key=?`).get(actor.companyId, batchKey))
         if (prior && (prior.fingerprint !== fingerprint || prior.row_count !== records.length)) return conflict('Import batch key reused with different contacts')
         const results = records.map((row, i) => {
           const result = trading.createContact({ ...input, displayName: row.displayName, code: row.code, requestKey: `${prefix}.${i + 1}` })
           return { id: result.id, code: result.code, displayName: result.displayName, replayed: result.replayed }
         })
         if (input.dryRun) throw new PreviewComplete(results)
-        if (!prior) db.prepare(`INSERT INTO contact_import_batches(id,organization_id,company_id,batch_key,fingerprint,row_count)
-          VALUES(?,?,?,?,?,?)`).run(randomUUID(), actor.organizationId, input.companyId, batchKey, fingerprint, records.length)
+        if (!prior) db.prepare(`INSERT INTO contact_import_batches(id,company_id,batch_key,fingerprint,row_count) VALUES(?,?,?,?,?)`).run(randomUUID(), input.companyId, batchKey, fingerprint, records.length)
         return { dryRun: false as const, created: results.filter(row => !row.replayed).length,
           replayed: results.filter(row => row.replayed).length, rows: results }
       })

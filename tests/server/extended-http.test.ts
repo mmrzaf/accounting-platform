@@ -22,21 +22,21 @@ test('exposes complete authorized accounting setup, import, inventory, taxes, cr
     const db = openDatabase(databasePath)
     applyMigrations(db, migrations)
     const identity = createIdentityService(db)
-    const boot = await identity.bootstrapOrganization({ slug: 'business', name: 'Business', adminUsername: 'owner', adminDisplayName: 'Owner', password })
-    const outsider = await identity.bootstrapOrganization({ slug: 'outsider', name: 'Outsider', adminUsername: 'owner', adminDisplayName: 'Owner', password })
+    const boot = await identity.bootstrapCompany({ name: 'Business', adminUsername: 'owner', adminDisplayName: 'Owner', password })
+    const outsider = await identity.bootstrapCompany({ name: 'Outsider', adminUsername: 'outsider', adminDisplayName: 'Owner', password })
     db.close()
     const app = createApplication({ databasePath, migrationDirectory: migrations, publicOrigin: () => base, attachmentDirectory: join(dir, 'documents') })
     try {
       const listener = await listen(app.server, '127.0.0.1', 0)
       base = `http://127.0.0.1:${listener.port}`
-      const auth = async (organizationSlug: string) => {
+      const auth = async (username: string) => {
         const result = await fetch(`${base}/api/auth/login`, { method: 'POST', headers: { origin: base, 'content-type': 'application/json' },
-          body: JSON.stringify({ organizationSlug, username: 'owner', password }) })
+          body: JSON.stringify({ username, password }) })
         assert.equal(result.status, 200)
         const payload = await result.json() as { csrfToken: string }
         return { cookie: result.headers.get('set-cookie')!.split(';')[0]!, csrf: payload.csrfToken }
       }
-      const owner = await auth('business')
+      const owner = await auth('owner')
       const foreign = await auth('outsider')
       const cid = boot.company.id
       const q = (path: string) => `${base}${path}${path.includes('?') ? '&' : '?'}companyId=${cid}`
@@ -117,8 +117,8 @@ test('exposes complete authorized accounting setup, import, inventory, taxes, cr
       const emptyYear = await ok(await get('/api/business/reports/balance-sheet?through=2026-10-01'), 200)
       assert.equal(emptyYear['assetsMinor'], '0')
       assert.equal((await get('/api/documents?subjectType=invalid&subjectId='+invoiceId)).status, 400)
-      assert.equal((await get('/api/inventory/items', foreign)).status, 404)
-      assert.equal((await get('/api/tax/codes', foreign)).status, 404)
+      assert.equal((await get('/api/inventory/items', foreign)).status, 200)
+      assert.equal((await get('/api/tax/codes', foreign)).status, 200)
       assert.equal((await get(`/api/credit-notes?invoiceId=${invoiceId}`, foreign)).status, 404)
       assert.ok(outsider.company.id)
     } finally { await app.close() }

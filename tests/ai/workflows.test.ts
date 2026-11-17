@@ -43,8 +43,8 @@ async function fixture<T>(fn: (f: Awaited<ReturnType<typeof setup>>) => T | Prom
 }
 async function setup(db: DatabaseSync, fetcher: typeof fetch) {
   const identity = createIdentityService(db), accounting = createAccountingService(db), trade = createTradingService(db)
-  const boot = await identity.bootstrapOrganization({ slug:'assistant',name:'Assistant organization',adminUsername:'owner',adminDisplayName:'Owner',password })
-  const { token } = await identity.login({ organizationSlug:'assistant',username:'owner',password })
+  const boot = await identity.bootstrapCompany({ name:'Assistant organization',adminUsername:'owner',adminDisplayName:'Owner',password })
+  const { token } = await identity.login({ username:'owner',password })
   const scope = { sessionToken: token, companyId: boot.company.id }
   const masterKey = randomBytes(32)
   const ai = createAiService(db,{ masterKey, fetcher })
@@ -160,8 +160,8 @@ test('read-only roles cannot receive mutating tools or approve somebody else’s
     const { identity, scope } = f
     const reader = await identity.createUser({ sessionToken:scope.sessionToken,username:'reader',displayName:'Reader',password })
     const role = identity.listRoles({ sessionToken:scope.sessionToken }).find(r=>r.code==='company-reader')!
-    identity.assignRole({ sessionToken:scope.sessionToken,userId:reader.id,roleId:role.id,companyId:scope.companyId })
-    const { token } = await identity.login({ organizationSlug:'assistant',username:'reader',password })
+    identity.assignRole({ sessionToken:scope.sessionToken,userId:reader.id,roleId:role.id})
+    const { token } = await identity.login({ username:'reader',password })
     const readScope = { sessionToken:token,companyId:scope.companyId }
     mock.enqueue(response('Read-only answer'))
     const reply = await f.ai.runTurn(run(readScope,'Can I list contacts?'))
@@ -182,11 +182,11 @@ test('read-only roles cannot receive mutating tools or approve somebody else’s
 test('cross-company isolation is fail-closed', async () => {
   const mock = scripted(response('',[tool('create_contact',{displayName:'Pending'})]))
   await fixture(async f => {
-    const later = f.identity.createCompany({ sessionToken:f.scope.sessionToken,code:'company-b',name:'Company B' })
+    const later = await f.identity.bootstrapCompany({name:'Company B',adminUsername:'company-b-owner',adminDisplayName:'Owner',password})
     const proposal = await f.ai.runTurn(run(f.scope,'Add pending contact','review'))
     assert.equal(proposal.status,'awaiting_approval')
-    assertCode(() => f.ai.getTurn({ ...f.scope,companyId:later.id,turnId:proposal.id }),'INVALID_STATE')
-    assertCode(() => f.ai.approveAction({ ...f.scope,companyId:later.id,actionId:proposal.action!.id,expectedFingerprint:proposal.action!.fingerprint }),'INVALID_STATE')
+    assertCode(() => f.ai.getTurn({ ...f.scope,companyId:later.company.id,turnId:proposal.id }),'NOT_FOUND')
+    assertCode(() => f.ai.approveAction({ ...f.scope,companyId:later.company.id,actionId:proposal.action!.id,expectedFingerprint:proposal.action!.fingerprint }),'NOT_FOUND')
     assert.equal(f.db.prepare("SELECT count(*) AS n FROM contacts WHERE display_name=\'Pending\'").get()?.['n'],0)
   },mock.fetcher)
 })
@@ -252,8 +252,8 @@ test('proposal approvals expire after fifteen minutes', async () => {
 test('AI actions and provider settings cannot cross organization boundaries', async () => {
   const mock = scripted(response('',[tool('create_contact',{displayName:'Scoped contact'})]))
   await fixture(async f => {
-    const another = await f.identity.bootstrapOrganization({slug:'another-org',name:'Another',adminUsername:'another',adminDisplayName:'Another',password})
-    const {token} = await f.identity.login({organizationSlug:'another-org',username:'another',password})
+    const another = await f.identity.bootstrapCompany({name:'Another',adminUsername:'another',adminDisplayName:'Another',password})
+    const {token} = await f.identity.login({username:'another',password})
     assert.equal(f.ai.getProvider({sessionToken:token}),null)
     const pending = await f.ai.runTurn(run(f.scope,'Create contact','review'))
     assertCode(()=>f.ai.getTurn({sessionToken:token,companyId:another.company.id,turnId:pending.id}),'INVALID_STATE')
@@ -267,7 +267,10 @@ test('revoking company role between proposal and approval prevents execution', a
   await fixture(async f => {
     const turn = await f.ai.runTurn(run(f.scope,'Create contact','review'))
     const grants = f.identity.listAssignments({sessionToken:f.scope.sessionToken,userId:f.boot.administrator.id})
-    const companyGrant = grants.find(g=>g.company_id===f.scope.companyId && g.role_code==='company-admin')!
+    const companyGrant = grants.find(g=>g.role_code==='company-admin')!
+    const adminRole=f.identity.listRoles({sessionToken:f.scope.sessionToken}).find(r=>r.code==='company-admin')!
+    const backupAdmin=await f.identity.createUser({sessionToken:f.scope.sessionToken,username:'backup-admin',displayName:'Backup Admin',password})
+    f.identity.assignRole({sessionToken:f.scope.sessionToken,userId:backupAdmin.id,roleId:adminRole.id})
     f.identity.revokeRole({sessionToken:f.scope.sessionToken,assignmentId:companyGrant.id})
     assert.throws(()=>f.ai.approveAction({...f.scope,actionId:turn.action!.id,expectedFingerprint:turn.action!.fingerprint}),
       e=>e instanceof IdentityError && ['NOT_FOUND','PERMISSION_DENIED'].includes(e.code))

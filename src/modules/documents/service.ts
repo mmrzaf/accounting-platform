@@ -18,21 +18,20 @@ export function createDocumentService(db: DatabaseSync, blobRoot: string, { cloc
   if (typeof blobRoot !== 'string' || !blobRoot.trim()) throw new TypeError('Provide a protected attachment root')
   const root = resolve(blobRoot)
   const identity = createIdentityContext(db, clock)
-  function subjectExists(organizationId: string, companyId: string, type: Subject, id: string) {
+  function subjectExists(companyId: string, type: Subject, id: string) {
     const table = { invoice: 'trade_invoices', payment: 'trade_payments', contact: 'contacts', journal: 'journal_entries' }[type]
-    const params = type === 'contact' ? [organizationId, id] : [organizationId, companyId, id]
-    return Boolean(db.prepare(`SELECT 1 FROM ${table} WHERE organization_id=? ${type === 'contact' ? '' : 'AND company_id=?'} AND id=?`).get(...params))
+    return Boolean(db.prepare(`SELECT 1 FROM ${table} WHERE company_id=? AND id=?`).get(companyId, id))
   }
   function subject(type: unknown, id: unknown): { type: Subject; id: string } {
     if (type !== 'invoice' && type !== 'payment' && type !== 'contact' && type !== 'journal') return invalid('Invalid attachment subject')
     return { type, id: uuid(id, 'subjectId') }
   }
-  function blobPath(orgId: string, companyId: string, id: string) { return join(root, uuid(orgId), uuid(companyId), `${uuid(id)}.blob`) }
+  function blobPath(companyId: string, id: string) { return join(root, uuid(companyId), `${uuid(id)}.blob`) }
   function metadata(input: CompanyAction & { attachmentId: string }) {
     const actor = identity.requireActor(input.sessionToken, 'documents.read', input.companyId)
     const record = rowAs<RecordRow>(db.prepare(`SELECT id,subject_type,subject_id,filename,media_type,byte_length,sha256,created_at
-      FROM document_attachments WHERE organization_id=? AND company_id=? AND id=?`)
-      .get(actor.organizationId, input.companyId, uuid(input.attachmentId, 'attachmentId')))
+      FROM document_attachments WHERE company_id=? AND id=?`)
+      .get(actor.companyId, uuid(input.attachmentId, 'attachmentId')))
     return { actor, record: record ?? missing() }
   }
   function attach(input: CompanyAction & { subjectType: Subject; subjectId: string; filename: string; mediaType: string; data: Uint8Array }) {
@@ -44,20 +43,19 @@ export function createDocumentService(db: DatabaseSync, blobRoot: string, { cloc
       return invalid('Attachment must be 1 byte to 10 MiB')
     const data = Buffer.from(input.data), sha256 = createHash('sha256').update(data).digest('hex')
     const actor = identity.requireActor(input.sessionToken, 'documents.manage', input.companyId)
-    if (!subjectExists(actor.organizationId, input.companyId, type, subjectId)) return missing()
-    const id = randomUUID(), path = blobPath(actor.organizationId, input.companyId, id)
+    if (!subjectExists(input.companyId, type, subjectId)) return missing()
+    const id = randomUUID(), path = blobPath(input.companyId, id)
     let written = false
     try {
       return transaction(db, () => {
         // The database row becomes visible only after the blob has been written.
         identity.requireActor(input.sessionToken, 'documents.manage', input.companyId)
-        if (!subjectExists(actor.organizationId, input.companyId, type, subjectId)) return missing()
-        mkdirSync(join(root, actor.organizationId, input.companyId), { recursive: true, mode: 0o700 })
+        if (!subjectExists(input.companyId, type, subjectId)) return missing()
+        mkdirSync(join(root, input.companyId), { recursive: true, mode: 0o700 })
         writeFileSync(path, data, { flag: 'wx', mode: 0o600, flush: true })
         written = true
-        db.prepare(`INSERT INTO document_attachments(id,organization_id,company_id,subject_type,subject_id,filename,media_type,byte_length,sha256,created_by)
-          VALUES(?,?,?,?,?,?,?,?,?,?)`).run(id, actor.organizationId, input.companyId, type, subjectId, filename, input.mediaType, data.byteLength, sha256, actor.userId)
-        identity.audit({ organizationId: actor.organizationId, companyId: input.companyId, actorId: actor.userId,
+        db.prepare(`INSERT INTO document_attachments(id,company_id,subject_type,subject_id,filename,media_type,byte_length,sha256,created_by) VALUES(?,?,?,?,?,?,?,?,?)`).run(id, input.companyId, type, subjectId, filename, input.mediaType, data.byteLength, sha256, actor.userId)
+        identity.audit({ companyId: input.companyId, actorId: actor.userId,
           action: 'documents.attach', subjectType: 'attachment', subjectId: id, details: { fileBytes: data.byteLength, subjectType: type } })
         return { id, subjectType: type, subjectId, filename, mediaType: input.mediaType, byteLength: data.byteLength, sha256 }
       })
@@ -70,14 +68,14 @@ export function createDocumentService(db: DatabaseSync, blobRoot: string, { cloc
   function list(input: CompanyAction & { subjectType: Subject; subjectId: string }) {
     const { type, id } = subject(input.subjectType, input.subjectId)
     const actor = identity.requireActor(input.sessionToken, 'documents.read', input.companyId)
-    if (!subjectExists(actor.organizationId, input.companyId, type, id)) return missing()
+    if (!subjectExists(input.companyId, type, id)) return missing()
     return rowsAs<RecordRow>(db.prepare(`SELECT id,subject_type,subject_id,filename,media_type,byte_length,sha256,created_at
-      FROM document_attachments WHERE organization_id=? AND company_id=? AND subject_type=? AND subject_id=? ORDER BY created_at,id LIMIT 1000`)
-      .all(actor.organizationId, input.companyId, type, id)).map(present)
+      FROM document_attachments WHERE company_id=? AND subject_type=? AND subject_id=? ORDER BY created_at,id LIMIT 1000`)
+      .all(actor.companyId, type, id)).map(present)
   }
   function read(input: CompanyAction & { attachmentId: string }) {
-    const { actor, record } = metadata(input)
-    const path = blobPath(actor.organizationId, input.companyId, record.id)
+    const { record } = metadata(input)
+    const path = blobPath(input.companyId, record.id)
     if (!existsSync(path)) throw new Error('Attachment blob missing; restore database and files together')
     if (statSync(path).size !== record.byte_length) throw new Error('Attachment size mismatch')
     const data = readFileSync(path)

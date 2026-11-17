@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs'
 import { createInterface } from 'node:readline'
 import { Writable } from 'node:stream'
 import { createIdentityService } from '../src/modules/identity/service.ts'
-import { recoverOrganizationAdministrator } from '../src/modules/identity/operator-recovery.ts'
+import { recoverCompanyAdministrator } from '../src/modules/identity/operator-recovery.ts'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve, join } from 'node:path'
 import { validateRuntime, loadLocalEnv, parseConfig } from '../src/platform/config/runtime.ts'
@@ -17,7 +17,7 @@ import { listen } from '../src/platform/server/node-http.ts'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const migrations = join(root, 'migrations')
-const commands = new Set(['setup', 'doctor', 'db:migrate', 'db:status', 'db:check', 'backup:create', 'backup:verify', 'backup:restore', 'server:start', 'organization:bootstrap', 'admin:recover'])
+const commands = new Set(['setup', 'doctor', 'db:migrate', 'db:status', 'db:check', 'backup:create', 'backup:verify', 'backup:restore', 'server:start', 'company:bootstrap', 'admin:recover'])
 
 function parseArgs(args: string[]) {
   const flags: Record<string, string | boolean | undefined> = {}
@@ -27,7 +27,7 @@ function parseArgs(args: string[]) {
     if (arg === '--') continue
     if (arg.startsWith('--')) {
       const key = arg.slice(2)
-      if (!['json', 'password-stdin', 'database', 'source', 'target', 'output', 'slug', 'name', 'admin-username', 'admin-name', 'company-code', 'company-name', 'attachments', 'target-attachments'].includes(key)) throw new Error(`Unknown flag: ${arg}`)
+      if (!['json', 'password-stdin', 'database', 'source', 'target', 'output', 'name', 'admin-username', 'admin-name', 'attachments', 'target-attachments'].includes(key)) throw new Error(`Unknown flag: ${arg}`)
       if (key === 'json' || key === 'password-stdin') flags[key] = true
       else {
         const value = args[++i]
@@ -37,7 +37,7 @@ function parseArgs(args: string[]) {
     } else if (!command) command = arg
     else throw new Error(`Unexpected argument: ${arg}`)
   }
-  if (!command || !commands.has(command)) throw new Error('Expected command: setup | doctor | db:migrate | db:status | db:check | backup:create | backup:verify | backup:restore | server:start | organization:bootstrap | admin:recover')
+  if (!command || !commands.has(command)) throw new Error('Expected command: setup | doctor | db:migrate | db:status | db:check | backup:create | backup:verify | backup:restore | server:start | company:bootstrap | admin:recover')
   return { command, flags }
 }
 
@@ -148,26 +148,24 @@ async function main(argv: string[]) {
       resolve(value('output') ?? config.backupDir)), flags['json'])
     return
   }
-  const db = openDatabase(dbPath, { create: command === 'db:migrate' || command === 'organization:bootstrap' || command === 'admin:recover' })
+  const db = openDatabase(dbPath, { create: command === 'db:migrate' || command === 'company:bootstrap' || command === 'admin:recover' })
   try {
-    if (command === 'organization:bootstrap') {
-      const required = ['slug', 'name', 'admin-username', 'admin-name']
-      for (const flag of required) if (!flags[flag]) throw new Error(`organization:bootstrap requires --${flag}`)
+    if (command === 'company:bootstrap') {
+      const required = ['name', 'admin-username', 'admin-name']
+      for (const flag of required) if (!flags[flag]) throw new Error(`company:bootstrap requires --${flag}`)
       if (migrationStatus(db, migrations).pending.length) throw new Error('Database has pending migrations; run db:migrate first')
       const password = await readSecret(flags['password-stdin'])
-      const result = await createIdentityService(db).bootstrapOrganization({
-        slug: value('slug')!, name: value('name')!, adminUsername: value('admin-username')!,
+      const result = await createIdentityService(db).bootstrapCompany({
+        name: value('name')!, adminUsername: value('admin-username')!,
         adminDisplayName: value('admin-name')!, password,
-        ...(value('company-code') ? { companyCode: value('company-code')! } : {}),
-        ...(value('company-name') ? { companyName: value('company-name')! } : {}),
       })
       emit({ ok: true, ...result }, flags['json'])
     }
     if (command === 'admin:recover') {
-      if (!value('slug') || !value('admin-username')) throw new Error('admin:recover requires --slug and --admin-username')
+      if (!value('admin-username')) throw new Error('admin:recover requires --admin-username')
       if (migrationStatus(db, migrations).pending.length) throw new Error('Database has pending migrations; run db:migrate first')
       const password = await readSecret(flags['password-stdin'])
-      emit(await recoverOrganizationAdministrator(db, { organizationSlug: value('slug')!, username: value('admin-username')!, newPassword: password }), flags['json'])
+      emit(await recoverCompanyAdministrator(db, { username: value('admin-username')!, newPassword: password }), flags['json'])
     }
     if (command === 'db:migrate') emit({ ok: true, migrations: applyMigrations(db, migrations) }, flags['json'])
     if (command === 'db:status') {

@@ -49,7 +49,7 @@ export function createApplication(options: ApplicationOptions) {
     const web = options.webDistDirectory ? createStaticWebHandler(options.webDistDirectory) : null
     const handler = async (request: Request) => {
       const path = new URL(request.url).pathname
-      if (path.startsWith('/api/auth/') || path === '/api/companies' || path === '/api/users' || path.startsWith('/api/users/') ||
+      if (path.startsWith('/api/auth/') || path === '/api/company' || path === '/api/users' || path.startsWith('/api/users/') ||
           path === '/api/roles' || path.startsWith('/api/roles/') || path === '/api/audit') return authHttp(request)
       if (path.startsWith('/api/business/')) return businessHttp(request)
       if (path.startsWith('/api/accounting/')) return accountingHttp(request)

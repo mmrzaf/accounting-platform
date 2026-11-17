@@ -32,7 +32,8 @@ function serialLine(row: InvoiceLineRow) {
 export function createInvoiceService(ctx: TradeContext) {
   const { db, authorize, book, account, party, audit, accounting, transaction } = ctx
   function load(actor: Actor, companyId: string, id: string): InvoiceRow {
-    return rowAs<InvoiceRow>(db.prepare(`${invoiceSelect} WHERE organization_id=? AND company_id=? AND id=?`).get(actor.organizationId, companyId, uuid(id, 'invoiceId'))) ?? missing()
+    if (actor.companyId !== companyId) return missing()
+    return rowAs<InvoiceRow>(db.prepare(`${invoiceSelect} WHERE company_id=? AND id=?`).get(actor.companyId, uuid(id, 'invoiceId'))) ?? missing()
   }
   function lines(invoiceId: string): InvoiceLineRow[] {
     return rowsAs<InvoiceLineRow>(db.prepare(`${lineSelect} WHERE invoice_id=? ORDER BY line_no`).all(invoiceId))
@@ -60,10 +61,9 @@ export function createInvoiceService(ctx: TradeContext) {
     for (const line of validated)
       account(actor, input.companyId, line.accountId, input.kind === 'sale' ? 'revenue' : 'expense')
   }
-  function insertLines(actor: Actor, companyId: string, id: string, validated: ValidLine[]) {
-    const insert = db.prepare(`INSERT INTO trade_invoice_lines(id,invoice_id,organization_id,company_id,line_no,item_kind,description,
-      quantity_milli,unit_price_minor,line_total_minor,account_id) VALUES(?,?,?,?,?,?,?,?,?,?,?)`)
-    validated.forEach((line, index) => insert.run(randomUUID(), id, actor.organizationId, companyId, index + 1,
+  function insertLines(companyId: string, id: string, validated: ValidLine[]) {
+    const insert = db.prepare(`INSERT INTO trade_invoice_lines(id,invoice_id,company_id,line_no,item_kind,description,quantity_milli,unit_price_minor,line_total_minor,account_id) VALUES(?,?,?,?,?,?,?,?,?,?)`)
+    validated.forEach((line, index) => insert.run(randomUUID(), id, companyId, index + 1,
       line.itemKind, line.description, line.quantityMilli, line.unitPriceMinor, line.lineTotalMinor, line.accountId))
   }
   function normalized(input: CreateInvoiceInput) {
@@ -83,7 +83,7 @@ export function createInvoiceService(ctx: TradeContext) {
     const value = normalized(input)
     return transaction(db, () => {
       const actor = authorize(input, permission(value.invoiceKind, 'manage'))
-      const existing = rowAs<InvoiceRow>(db.prepare(`${invoiceSelect} WHERE organization_id=? AND company_id=? AND request_key=?`).get(actor.organizationId, input.companyId, value.requestKey))
+      const existing = rowAs<InvoiceRow>(db.prepare(`${invoiceSelect} WHERE company_id=? AND request_key=?`).get(actor.companyId, value.requestKey))
       if (existing) {
         if (existing.fingerprint !== value.fingerprint) return conflict('Invoice request key reused with different contents')
         return { ...view(existing), replayed: true }
@@ -91,11 +91,10 @@ export function createInvoiceService(ctx: TradeContext) {
       const currency = book(actor, input.companyId).base_currency
       validateAccounts(actor, { ...input, kind: value.invoiceKind, partyId: value.partyId, controlAccountId: value.control }, value.prepared.lines)
       const id = randomUUID()
-      db.prepare(`INSERT INTO trade_invoices(id,organization_id,company_id,kind,party_id,issued_on,control_account_id,currency,
-        total_minor,request_key,fingerprint,description) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`)
-        .run(id, actor.organizationId, input.companyId, value.invoiceKind, value.partyId, value.issuedOn, value.control,
+      db.prepare(`INSERT INTO trade_invoices(id,company_id,kind,party_id,issued_on,control_account_id,currency,total_minor,request_key,fingerprint,description) VALUES(?,?,?,?,?,?,?,?,?,?,?)`)
+        .run(id, input.companyId, value.invoiceKind, value.partyId, value.issuedOn, value.control,
           currency, value.prepared.total, value.requestKey, value.fingerprint, value.description)
-      insertLines(actor, input.companyId, id, value.prepared.lines)
+      insertLines(input.companyId, id, value.prepared.lines)
       audit(actor, input.companyId, 'trade.invoice.create', 'trade_invoice', id, { kind: value.invoiceKind })
       return { ...view(load(actor, input.companyId, id)), replayed: false }
     })
@@ -112,10 +111,10 @@ export function createInvoiceService(ctx: TradeContext) {
       validateAccounts(actor, { ...input, kind: value.invoiceKind, partyId: value.partyId, controlAccountId: value.control }, value.prepared.lines)
       db.prepare('DELETE FROM trade_invoice_lines WHERE invoice_id=?').run(original.id)
       db.prepare(`UPDATE trade_invoices SET party_id=?,issued_on=?,control_account_id=?,total_minor=?,description=?,revision=revision+1
-        WHERE organization_id=? AND company_id=? AND id=? AND status='draft' AND revision=?`)
+        WHERE company_id=? AND id=? AND status='draft' AND revision=?`)
         .run(value.partyId, value.issuedOn, value.control, value.prepared.total, value.description,
-          actor.organizationId, input.companyId, original.id, input.expectedRevision)
-      insertLines(actor, input.companyId, original.id, value.prepared.lines)
+          actor.companyId, original.id, input.expectedRevision)
+      insertLines(input.companyId, original.id, value.prepared.lines)
       audit(actor, input.companyId, 'trade.invoice.revise', 'trade_invoice', original.id, { revision: input.expectedRevision + 1 })
       return view(load(actor, input.companyId, original.id))
     })
@@ -131,8 +130,8 @@ export function createInvoiceService(ctx: TradeContext) {
     const actor = authorize(input, permission(invoiceKind, 'read'))
     const limit = input.limit ?? 100
     if (!Number.isInteger(limit) || limit < 1 || limit > 200) return invalid('Invalid list limit')
-    return rowsAs<InvoiceRow>(db.prepare(`${invoiceSelect} WHERE organization_id=? AND company_id=? AND kind=? ORDER BY issued_on DESC,id DESC LIMIT ?`)
-      .all(actor.organizationId, input.companyId, invoiceKind, limit)).map(view)
+    return rowsAs<InvoiceRow>(db.prepare(`${invoiceSelect} WHERE company_id=? AND kind=? ORDER BY issued_on DESC,id DESC LIMIT ?`)
+      .all(actor.companyId, invoiceKind, limit)).map(view)
   }
   function postInvoice(input: FinancialMutation) {
     return transaction(db, () => {
@@ -157,9 +156,9 @@ export function createInvoiceService(ctx: TradeContext) {
       const journal = accounting.postWithinTransaction({ ...input, date: row.issued_on,
         sourceType: 'trade.invoice', sourceId: row.id, sourceEvent: 'post', idempotencyKey: `trade.invoice.${row.id}`,
         description: row.description, lines: journalLines }, { allowDocumentSource: true })
-      const number = nextDocumentNumber(db, actor, input.companyId, row.kind)
+      const number = nextDocumentNumber(db, input.companyId, row.kind)
       db.prepare(`UPDATE trade_invoices SET journal_id=?,number=?,status='posted'
-        WHERE organization_id=? AND company_id=? AND id=? AND status='draft'`).run(journal.id, number, actor.organizationId, input.companyId, row.id)
+        WHERE company_id=? AND id=? AND status='draft'`).run(journal.id, number, actor.companyId, row.id)
       audit(actor, input.companyId, 'trade.invoice.post', 'trade_invoice', row.id, { kind: row.kind })
       return { ...view(load(actor, input.companyId, row.id)), replayed: false }
     })
@@ -170,7 +169,7 @@ export function createInvoiceService(ctx: TradeContext) {
       const row = load(actor, input.companyId, input.id)
       authorize(input, permission(row.kind, 'manage'))
       if (row.status !== 'draft') return invalidState('Only drafts may be voided')
-      db.prepare(`UPDATE trade_invoices SET status='voided' WHERE id=? AND organization_id=? AND company_id=?`).run(row.id, actor.organizationId, input.companyId)
+      db.prepare(`UPDATE trade_invoices SET status='voided' WHERE id=? AND company_id=?`).run(row.id, actor.companyId)
       audit(actor, input.companyId, 'trade.invoice.void', 'trade_invoice', row.id)
       return view(load(actor, input.companyId, row.id))
     })
@@ -189,7 +188,7 @@ export function createInvoiceService(ctx: TradeContext) {
         idempotencyKey: requestKey, reason }, { allowDocumentSource: true })
       if (row.status === 'reversed') return { ...view(row), replayed: true }
       db.prepare(`UPDATE trade_invoices SET reversal_journal_id=?,status='reversed'
-        WHERE id=? AND organization_id=? AND company_id=?`).run(reversed.id, row.id, actor.organizationId, input.companyId)
+        WHERE id=? AND company_id=?`).run(reversed.id, row.id, actor.companyId)
       audit(actor, input.companyId, 'trade.invoice.reverse', 'trade_invoice', row.id, { reason })
       return { ...view(load(actor, input.companyId, row.id)), replayed: false }
     })
