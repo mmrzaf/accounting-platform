@@ -304,11 +304,15 @@ test('single-action invoice and payment commands post atomically with consistent
 
 test('failed composite posting does not leave partial payments, journals or audit events', async () => fixture(f => {
   const { trade, scope, sale, receipt, db } = f
-  const posted = trade.recordInvoice(sale('composite-invoice'))
+  const other = trade.createContact({ ...scope, displayName: 'Different supplier', requestKey: 'other-party' })
+  const posted = trade.recordInvoice(sale('composite-invoice', { partyId: other.id }))
   const before = db.prepare('SELECT count(*) AS n FROM journal_entries').get()?.['n']
   const beforePayments = db.prepare('SELECT count(*) AS n FROM trade_payments').get()?.['n']
   const beforeAudit = db.prepare('SELECT count(*) AS n FROM security_audit').get()?.['n']
-  reject(() => trade.recordPayment({ ...receipt('rollback-receipt'), invoiceId: posted.id, allocationMinor: '99999999' }), 'INVALID_INPUT')
+  // The payment is valid and gets posted inside the command; only the later allocation
+  // fails because the invoice belongs to another contact. The outer transaction must
+  // undo the newly created payment, its journal, and audit event.
+  reject(() => trade.recordPayment({ ...receipt('rollback-receipt'), invoiceId: posted.id, allocationMinor: '100000' }), 'CONFLICT')
   assert.equal(db.prepare('SELECT count(*) AS n FROM journal_entries').get()?.['n'], before)
   assert.equal(db.prepare('SELECT count(*) AS n FROM trade_payments').get()?.['n'], beforePayments)
   assert.equal(db.prepare('SELECT count(*) AS n FROM security_audit').get()?.['n'], beforeAudit)
