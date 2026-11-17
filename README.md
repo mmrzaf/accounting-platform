@@ -1,8 +1,8 @@
 # Accounting Platform
 
-**Strict TypeScript accounting and business-workflow services — not yet a browser-based or production-ready accounting application.**
+**Strict TypeScript financial services with a runnable local HTTP gateway and complete recovery tooling — not yet a React browser application or production-ready accounting product.**
 
-A planned AI-native accounting and general trading platform for small Iranian businesses. The intended production system is a modular monolith with exact money arithmetic, enforced organization/company isolation, professional Persian/English UX, and an AI operator using the same application services as people. **Framework-independent identity, accounting, trading, and AI-assisted operation services are implemented; the TanStack Start/React application is still pending.**
+A planned AI-native accounting and general trading platform for small Iranian businesses. The intended production system is a modular monolith with exact money arithmetic, enforced organization/company isolation, professional Persian/English UX, and an AI operator using the same application services as people. **Framework-independent identity, accounting, trading, and AI-assisted operation services are implemented, with a local HTTP adapter. The TanStack Start/React application remains pending.**
 
 ## Current implementation
 
@@ -14,8 +14,8 @@ A planned AI-native accounting and general trading platform for small Iranian bu
 - Trading services: shared contacts, purchase/sale invoice drafts and posts, base-currency receipts/disbursements, partial settlements, audited allocation reversals, retry-safe commands, company-specific internal document numbering and ledger-backed corrections. See [trading workflows](docs/domain/trading-workflows.md).
 - Phase 7 company-scoped credit notes, dated tax-code schedules, current invoice aging, period profit-and-loss, quantity-only stock movements, transactional contact CSV imports, and checksum-protected attachment storage (see [limitations and contracts](docs/domain/first-release-extensions.md)).
 - AI module with organization-scoped encrypted provider configuration, permission-scoped business tools, audited automatic or confirmation-bound mutations, and a mock-tested OpenAI-compatible Chat Completions adapter. See [AI API](docs/api/ai-service.md).
-- Framework-neutral identity **and AI** HTTP `Request`/`Response` adapters with session cookies, origin/CSRF checks, and explicit request decoding; **not yet connected to an HTTP server**.
-- CLI for environment diagnostics, database migrations, backup/verify/restore, first administrator bootstrap, and local administrator recovery.
+- Local loopback Node HTTP server mounting identity, business, reporting and optional AI routes; canonical Host/origin handling, cookies, CSRF and company-scoped service enforcement. This is an interim host, not TanStack Start.
+- CLI for environment diagnostics, database migrations, legacy SQLite-only snapshots, complete database+attachment backup/verify/restore, local HTTP serving, first administrator bootstrap, and local administrator recovery.
 - RTL/LTR locale and design tokens plus a static visual fixture; no React screens yet.
 - Accounting-invariant, integration, security and infrastructure tests; boundary checker and conventional-commit guidance.
 
@@ -45,9 +45,9 @@ corepack pnpm app:bootstrap -- --slug example --name "Example" --admin-username 
 
 The last command prompts for a password (or supports `--password-stdin`), so credentials need not appear in shell history. For review in an offline environment with the pinned TypeScript compiler and Node type definitions already available, the scripts also run through `npm run verify` without pnpm-specific behavior. See [development setup](docs/development/getting-started.md).
 
-Other scripts: `check:types`, `check:sources`, `check:boundaries`, `check:docs`, `build`, `test`, `verify`, `db:status`, `db:check`, `app:backup`, `app:backup-verify`, `app:restore`, and `app:recover-admin`.
+Additional scripts: `app:serve`, `app:backup-complete`, `app:backup-complete-verify`, `app:backup-complete-restore`. Other scripts: `check:types`, `check:sources`, `check:boundaries`, `check:docs`, `build`, `test`, `verify`, `db:status`, `db:check`, `app:backup`, `app:backup-verify`, `app:restore`, and `app:recover-admin`.
 
-**No server is started by these commands.** `setup` creates directories; migrations/bootstrap are explicit. **Current backups cover SQLite only, NOT newly implemented attachment blobs; do not use attachments in production until complete backup/restore is implemented.** The identity and AI HTTP adapters are not production network listeners or a production authentication deployment.
+**`npm run app:serve` starts a loopback-only Node HTTP server** after explicit migration and bootstrap. `setup` only creates directories. **Use `app:backup-complete` for SQLite plus attachments**; older `app:backup` remains SQLite-only and is insufficient once attachments are used. See [local server](docs/operations/local-server.md) and [complete recovery](docs/operations/complete-backups.md). This interim server is not the planned React/TanStack production deployment.
 
 ## Architecture and code ownership
 
@@ -56,7 +56,8 @@ Other scripts: `check:types`, `check:sources`, `check:boundaries`, `check:docs`,
 - [Implemented ledger API and limitations](docs/accounting/implemented-ledger.md), [accounting invariants](docs/accounting/accounting-core.md) and [money/FX policy](docs/accounting/money-and-fx.md)
 - [Authorization](docs/security/authorization.md), [identity HTTP contract](docs/api/identity.md), [trading service contract](docs/api/trading-service.md), and [AI operations/HTTP contract](docs/api/ai-service.md)
 - [First-release extension contracts and limitations](docs/domain/first-release-extensions.md)
-- [Operation and recovery guidance](docs/operations/identity-bootstrap.md)
+- [Operation and recovery guidance](docs/operations/identity-bootstrap.md), [complete backup and restore](docs/operations/complete-backups.md), and [local server](docs/operations/local-server.md)
+- [Business HTTP routes](docs/api/business-http.md) and [operational integration validation](docs/validation/phase-8.md)
 - [Architecture decision register](docs/decisions/decision-register.md)
 - [Commit conventions](docs/development/commit-conventions.md)
 - [Reconstruction validation record](docs/validation/typescript-reconstruction.md) and [AI validation](docs/validation/phase-6.md)
@@ -64,6 +65,6 @@ Other scripts: `check:types`, `check:sources`, `check:boundaries`, `check:docs`,
 
 ## Explicit non-goals and unresolved work
 
-The TypeScript reconstruction and Phase 4–5 establish independently tested service boundaries; they **do not** introduce TanStack Start, React, Drizzle, a running server, a user-visible invoice/payment UI, or an integrated AI UI. A backend AI execution service exists, but no actual hosted or local model provider has been validated. Purchase/sale and settlement source-document **backend services are implemented**, but they are not a finished financial product. Adding production dependencies and passing frozen-install, Node compatibility, real browser and security tests remains a prerequisite before a business release. The SQLite identity services currently access the database through centralized typed SQL-projection casts; those casts need stronger schema-backed mapping when production persistence integration is established.
+The TypeScript reconstruction and Phase 4–5 establish independently tested service boundaries; they **do not** introduce TanStack Start, React, Drizzle, a user-visible invoice/payment UI, or an integrated AI UI. The runnable interim Node HTTP host is not the final production UI. A backend AI execution service exists, but no actual hosted or local model provider has been validated. Purchase/sale and settlement source-document **backend services are implemented**, but they are not a finished financial product. Adding production dependencies and passing frozen-install, Node compatibility, real browser and security tests remains a prerequisite before a business release. The SQLite identity services currently access the database through centralized typed SQL-projection casts; those casts need stronger schema-backed mapping when production persistence integration is established.
 
 The company model, some detailed FX rules, inventory valuation, statutory tax integration and the final AI execution risk thresholds remain documented as proposed/pending, not silently approved. See the decision register. Any subsequent financial work must preserve double entry, postings/reversals, isolation and authorization invariants.
