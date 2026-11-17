@@ -522,10 +522,29 @@ CREATE TABLE ai_company_policies (
  FOREIGN KEY(company_id) REFERENCES companies(id) ON DELETE RESTRICT
 ) STRICT;
 
+-- Conversation history belongs to the signed-in user; it is never shared across companies or users.
+CREATE TABLE ai_conversations (
+ id TEXT PRIMARY KEY NOT NULL,
+ company_id TEXT NOT NULL,
+ user_id TEXT NOT NULL,
+ title TEXT NOT NULL CHECK(length(title) BETWEEN 1 AND 160),
+ archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN (0,1)),
+ created_at TEXT NOT NULL,
+ updated_at TEXT NOT NULL,
+ UNIQUE(company_id,user_id,id),
+ FOREIGN KEY(company_id,user_id) REFERENCES users(company_id,id) ON DELETE RESTRICT
+) STRICT;
+CREATE INDEX ai_conversations_user ON ai_conversations(company_id,user_id,archived,updated_at DESC);
+CREATE TRIGGER ai_conversations_ownership_guard BEFORE UPDATE OF company_id,user_id ON ai_conversations
+BEGIN SELECT RAISE(ABORT,'AI conversation ownership is immutable'); END;
+
 CREATE TABLE ai_turns (
  id TEXT PRIMARY KEY NOT NULL,
  company_id TEXT NOT NULL,
  user_id TEXT NOT NULL,
+ conversation_id TEXT NOT NULL,
+ user_message TEXT NOT NULL CHECK(length(user_message) BETWEEN 1 AND 4000),
+ context_json TEXT NOT NULL DEFAULT '{}' CHECK(json_valid(context_json)),
  client_request_id TEXT NOT NULL CHECK(length(client_request_id) BETWEEN 1 AND 128),
  prompt_hash TEXT NOT NULL CHECK(length(prompt_hash)=64),
  status TEXT NOT NULL CHECK(status IN ('processing','completed','awaiting_approval','failed')),
@@ -535,8 +554,10 @@ CREATE TABLE ai_turns (
  UNIQUE(company_id,user_id,client_request_id),
  UNIQUE(company_id,id),
  FOREIGN KEY(company_id) REFERENCES companies(id) ON DELETE RESTRICT,
- FOREIGN KEY(company_id,user_id) REFERENCES users(company_id,id) ON DELETE RESTRICT
+ FOREIGN KEY(company_id,user_id) REFERENCES users(company_id,id) ON DELETE RESTRICT,
+ FOREIGN KEY(company_id,user_id,conversation_id) REFERENCES ai_conversations(company_id,user_id,id) ON DELETE RESTRICT
 ) STRICT;
+CREATE INDEX ai_turns_conversation ON ai_turns(company_id,user_id,conversation_id,created_at,id);
 CREATE INDEX ai_turns_by_user ON ai_turns(company_id,user_id,created_at DESC);
 CREATE INDEX ai_turns_rate_limit ON ai_turns(company_id,user_id,created_at DESC);
 
@@ -547,6 +568,7 @@ CREATE TABLE ai_actions (
  user_id TEXT NOT NULL,
  tool_name TEXT NOT NULL CHECK(length(tool_name) BETWEEN 1 AND 80),
  input_json TEXT NOT NULL CHECK(length(input_json) BETWEEN 2 AND 20000),
+ preview_json TEXT NOT NULL DEFAULT '{}' CHECK(json_valid(preview_json)),
  fingerprint TEXT NOT NULL CHECK(length(fingerprint)=64),
  state TEXT NOT NULL CHECK(state IN ('awaiting_approval','executing','completed','failed','rejected')),
  result_json TEXT,
@@ -560,9 +582,9 @@ CREATE TABLE ai_actions (
 CREATE INDEX ai_actions_pending ON ai_actions(company_id,user_id,state);
 
 -- The request/identity, company and action must never be moved to another security scope.
-CREATE TRIGGER ai_turns_scope_immutable BEFORE UPDATE OF company_id,user_id,client_request_id,prompt_hash ON ai_turns
+CREATE TRIGGER ai_turns_scope_immutable BEFORE UPDATE OF company_id,user_id,conversation_id,user_message,context_json,client_request_id,prompt_hash ON ai_turns
 BEGIN SELECT RAISE(ABORT,'AI turn identity is immutable'); END;
-CREATE TRIGGER ai_actions_scope_immutable BEFORE UPDATE OF company_id,user_id,turn_id,tool_name,input_json,fingerprint ON ai_actions
+CREATE TRIGGER ai_actions_scope_immutable BEFORE UPDATE OF company_id,user_id,turn_id,tool_name,input_json,preview_json,fingerprint ON ai_actions
 BEGIN SELECT RAISE(ABORT,'AI action identity is immutable'); END;
 
 -- 0006 access_and_tax
