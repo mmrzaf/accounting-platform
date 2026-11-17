@@ -38,5 +38,13 @@ export function parseConfig(env: NodeJS.ProcessEnv = process.env, cwd: string = 
   }
   const dbPath = resolve(cwd, env['APP_DB_PATH'] ?? 'var/data/accounting.sqlite')
   const backupDir = resolve(cwd, env['APP_BACKUP_DIR'] ?? 'var/backups')
-  return Object.freeze({ port, bindHost, dbPath, backupDir })
+  const attachmentDir = resolve(cwd, env['APP_ATTACHMENT_DIR'] ?? 'var/attachments')
+  const publicOrigin = env['APP_PUBLIC_ORIGIN'] ?? `http://127.0.0.1:${port}`
+  let parsed: URL
+  try { parsed = new URL(publicOrigin) } catch { throw new ConfigurationError('APP_PUBLIC_ORIGIN must be an absolute origin') }
+  if (!['https:', 'http:'].includes(parsed.protocol) || parsed.origin !== publicOrigin || parsed.username || parsed.password ||
+      (parsed.protocol === 'http:' && !['localhost', '127.0.0.1', '[::1]'].includes(parsed.hostname))) {
+    throw new ConfigurationError('APP_PUBLIC_ORIGIN must be HTTPS or loopback HTTP with no path')
+  }
+  return Object.freeze({ port, bindHost, dbPath, backupDir, attachmentDir, publicOrigin })
 }

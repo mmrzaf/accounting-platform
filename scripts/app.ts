@@ -10,11 +10,14 @@ import { validateRuntime, loadLocalEnv, parseConfig } from '../src/platform/conf
 import { openDatabase, checkDatabase } from '../src/platform/database/sqlite.ts'
 import { migrationStatus, applyMigrations } from '../src/platform/database/migrations.ts'
 import { createBackup, verifyBackup, restoreBackup } from '../src/platform/backup/backups.ts'
+import { createCompleteBackup, verifyCompleteBackup, restoreCompleteBackup } from '../src/platform/backup/complete-backups.ts'
 import { logEvent } from '../src/platform/logging/logger.ts'
+import { createApplication } from '../src/platform/server/application.ts'
+import { listen } from '../src/platform/server/node-http.ts'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const migrations = join(root, 'migrations')
-const commands = new Set(['setup', 'doctor', 'db:migrate', 'db:status', 'db:check', 'backup:create', 'backup:verify', 'backup:restore', 'organization:bootstrap', 'admin:recover'])
+const commands = new Set(['setup', 'doctor', 'db:migrate', 'db:status', 'db:check', 'backup:create', 'backup:verify', 'backup:restore', 'backup:complete', 'backup:complete-verify', 'backup:complete-restore', 'server:start', 'organization:bootstrap', 'admin:recover'])
 
 function parseArgs(args: string[]) {
   const flags: Record<string, string | boolean | undefined> = {}
@@ -24,7 +27,7 @@ function parseArgs(args: string[]) {
     if (arg === '--') continue
     if (arg.startsWith('--')) {
       const key = arg.slice(2)
-      if (!['json', 'password-stdin', 'database', 'source', 'target', 'output', 'slug', 'name', 'admin-username', 'admin-name', 'company-code', 'company-name'].includes(key)) throw new Error(`Unknown flag: ${arg}`)
+      if (!['json', 'password-stdin', 'database', 'source', 'target', 'output', 'slug', 'name', 'admin-username', 'admin-name', 'company-code', 'company-name', 'attachments', 'target-attachments'].includes(key)) throw new Error(`Unknown flag: ${arg}`)
       if (key === 'json' || key === 'password-stdin') flags[key] = true
       else {
         const value = args[++i]
@@ -34,7 +37,7 @@ function parseArgs(args: string[]) {
     } else if (!command) command = arg
     else throw new Error(`Unexpected argument: ${arg}`)
   }
-  if (!command || !commands.has(command)) throw new Error('Expected command: setup | doctor | db:migrate | db:status | db:check | backup:create | backup:verify | backup:restore | organization:bootstrap | admin:recover')
+  if (!command || !commands.has(command)) throw new Error('Expected command: setup | doctor | db:migrate | db:status | db:check | backup:create | backup:verify | backup:restore | backup:complete | backup:complete-verify | backup:complete-restore | server:start | organization:bootstrap | admin:recover')
   return { command, flags }
 }
 
@@ -70,6 +73,7 @@ async function main(argv: string[]) {
   if (command === 'setup') {
     await mkdir(dirname(dbPath), { recursive: true, mode: 0o700 })
     await mkdir(config.backupDir, { recursive: true, mode: 0o700 })
+    await mkdir(config.attachmentDir, { recursive: true, mode: 0o700 })
     emit({ ok: true, initializedDirectories: true, next: 'Run db:migrate explicitly; setup never modifies a database' }, flags['json'])
     return
   }
@@ -80,6 +84,41 @@ async function main(argv: string[]) {
     emit({ ok: true, checks, warnings: dbExists ? [] : ['Database has not been initialized. Run db:migrate.'] }, flags['json'])
     return
   }
+  if (command === 'server:start') {
+    const encodedKey = process.env['APP_AI_MASTER_KEY_BASE64']
+    const key = encodedKey ? Buffer.from(encodedKey, 'base64') : undefined
+    if (encodedKey && (!/^[A-Za-z0-9+/]{43}=$/u.test(encodedKey) || key?.byteLength !== 32))
+      throw new Error('APP_AI_MASTER_KEY_BASE64 must be a base64-encoded 32-byte random key')
+    const application = createApplication({ databasePath: dbPath, migrationDirectory: migrations, publicOrigin: config.publicOrigin,
+      ...(key ? { aiMasterKey: key } : {}) })
+    try {
+      await listen(application.server, config.bindHost, config.port)
+    } catch (error) {
+      application.server.closeAllConnections()
+      throw error
+    }
+    emit({ ok: true, publicOrigin: config.publicOrigin, bindHost: config.bindHost, port: config.port, aiEnabled: !!key }, flags['json'])
+    let stopping = false
+    const shutdown = () => {
+      if (stopping) return
+      stopping = true
+      application.close().then(() => { process.exitCode = 0 }).catch(() => { process.exitCode = 1 })
+    }
+    process.once('SIGINT', shutdown)
+    process.once('SIGTERM', shutdown)
+    return
+  }
+  if (command === 'backup:complete-verify') {
+    if (!value('source')) throw new Error('backup:complete-verify requires --source BUNDLE_DIR')
+    emit(await verifyCompleteBackup(value('source')!), flags['json'])
+    return
+  }
+  if (command === 'backup:complete-restore') {
+    if (!value('source') || !value('target') || !value('target-attachments'))
+      throw new Error('backup:complete-restore requires --source BUNDLE_DIR --target NEW_DB --target-attachments NEW_DIR')
+    emit(await restoreCompleteBackup(value('source')!, value('target')!, value('target-attachments')!), flags['json'])
+    return
+  }
   if (command === 'backup:verify') {
     if (!value('source')) throw new Error('backup:verify requires --source PATH')
     emit(await verifyBackup(value('source')!), flags['json'])
@@ -88,6 +127,11 @@ async function main(argv: string[]) {
   if (command === 'backup:restore') {
     if (!value('source') || !value('target')) throw new Error('backup:restore requires --source PATH and --target NEW_PATH')
     emit(await restoreBackup(value('source')!, value('target')!), flags['json'])
+    return
+  }
+  if (command === 'backup:complete') {
+    emit(await createCompleteBackup(dbPath, resolve(value('attachments') ?? config.attachmentDir),
+      resolve(value('output') ?? config.backupDir)), flags['json'])
     return
   }
   if (command === 'backup:create') {

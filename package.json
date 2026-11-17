@@ -1,9 +1,9 @@
 {
   "name": "accounting-platform",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "private": true,
   "type": "module",
-  "description": "Strict TypeScript modular monolith with identity, accounting, trading, business extensions and bounded AI actions; UI integration pending",
+  "description": "Strict TypeScript accounting services with operational HTTP and complete recovery foundations; framework UI pending",
   "packageManager": "pnpm@10.20.0",
   "engines": {
     "node": ">=22.16.0 <23 || >=24.0.0 <25 || >=26.0.0 <27"
@@ -14,7 +14,7 @@
     "check:docs": "node --experimental-strip-types scripts/check-docs.ts",
     "check:sources": "node --experimental-strip-types scripts/check-sources.ts",
     "check": "npm run check:types && npm run check:docs && npm run check:sources && npm run check:boundaries",
-    "test": "node --experimental-strip-types --test experiments/sqlite-feasibility/*.test.ts tests/infrastructure/*.test.ts tests/identity/*.test.ts tests/accounting/*.test.ts tests/trading/*.test.ts tests/ai/*.test.ts",
+    "test": "node --experimental-strip-types --test experiments/sqlite-feasibility/*.test.ts tests/infrastructure/*.test.ts tests/identity/*.test.ts tests/accounting/*.test.ts tests/trading/*.test.ts tests/ai/*.test.ts tests/server/*.test.ts",
     "verify": "npm run check && npm run build && npm run test",
     "setup": "node --experimental-strip-types scripts/app.ts setup",
     "app:doctor": "node --experimental-strip-types scripts/app.ts doctor",
@@ -28,7 +28,11 @@
     "app:recover-admin": "node --experimental-strip-types scripts/app.ts admin:recover",
     "test:probes": "node --experimental-strip-types --test experiments/sqlite-feasibility/*.test.ts",
     "probe:types": "tsc -p tsconfig.json",
-    "check:boundaries": "node --experimental-strip-types scripts/check-boundaries.ts"
+    "check:boundaries": "node --experimental-strip-types scripts/check-boundaries.ts",
+    "app:backup-complete": "node --experimental-strip-types scripts/app.ts backup:complete",
+    "app:backup-complete-verify": "node --experimental-strip-types scripts/app.ts backup:complete-verify",
+    "app:backup-complete-restore": "node --experimental-strip-types scripts/app.ts backup:complete-restore",
+    "app:serve": "node --experimental-strip-types scripts/app.ts server:start"
   },
   "devDependencies": {
     "@types/node": "25.1.0",
