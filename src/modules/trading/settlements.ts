@@ -29,6 +29,10 @@ export function createSettlementService(ctx: TradeContext) {
       WHERE a.${column}=? AND NOT EXISTS (SELECT 1 FROM allocation_reversals r WHERE r.allocation_id=a.id)`).get(id))
     return BigInt(row?.amount ?? '0')
   }
+  function credited(id: string): bigint {
+    const r = rowAs<{ amount: string }>(db.prepare("SELECT bigint_total(amount_minor) AS amount FROM trade_credit_notes WHERE invoice_id=? AND status='posted'").get(id))
+    return BigInt(r?.amount ?? '0')
+  }
   function allocatePayment(input: AllocatePaymentInput) {
     const invoiceId = uuid(input.invoiceId, 'invoiceId'), paymentId = uuid(input.paymentId, 'paymentId')
     const amount = positiveAmount(input.amountMinor, 'Allocation amount')
@@ -48,7 +52,7 @@ export function createSettlementService(ctx: TradeContext) {
       if (invoice.party_id !== payment.party_id || invoice.currency !== payment.currency || invoice.control_account_id !== payment.control_account_id ||
         (invoice.kind === 'sale' && payment.kind !== 'receipt') || (invoice.kind === 'purchase' && payment.kind !== 'payment'))
         return conflict('Payment and invoice must match in party, currency, control account and direction')
-      if (used(invoiceId, 'invoice_id') + amount > BigInt(invoice.amount_minor)) return conflict('Allocation exceeds invoice outstanding balance')
+      if (used(invoiceId, 'invoice_id') + credited(invoiceId) + amount > BigInt(invoice.amount_minor)) return conflict('Allocation exceeds invoice outstanding balance')
       if (used(paymentId, 'payment_id') + amount > BigInt(payment.amount_minor)) return conflict('Allocation exceeds unapplied payment amount')
       const id = randomUUID()
       db.prepare(`INSERT INTO payment_allocations(id,organization_id,company_id,invoice_id,payment_id,amount_minor,request_key,fingerprint)

@@ -42,11 +42,15 @@ export function createInvoiceService(ctx: TradeContext) {
       WHERE a.invoice_id=? AND NOT EXISTS (SELECT 1 FROM allocation_reversals r WHERE r.allocation_id=a.id)`).get(invoiceId))
     return BigInt(value?.total ?? '0')
   }
+  function credited(invoiceId: string): bigint {
+    const row = rowAs<{ total: string }>(db.prepare("SELECT bigint_total(amount_minor) AS total FROM trade_credit_notes WHERE invoice_id=? AND status='posted'").get(invoiceId))
+    return BigInt(row?.total ?? '0')
+  }
   function view(row: InvoiceRow) {
-    const appliedAmount = applied(row.id)
+    const appliedAmount = applied(row.id), creditedAmount = credited(row.id)
     return { id: row.id, kind: row.kind, partyId: row.party_id, issuedOn: row.issued_on, controlAccountId: row.control_account_id,
-      currency: row.currency, totalMinor: row.total_minor, number: row.number, appliedMinor: appliedAmount.toString(),
-      outstandingMinor: (row.status === 'posted' ? BigInt(row.total_minor) - appliedAmount : 0n).toString(), status: row.status,
+      currency: row.currency, totalMinor: row.total_minor, number: row.number, appliedMinor: appliedAmount.toString(), creditedMinor: creditedAmount.toString(),
+      outstandingMinor: (row.status === 'posted' ? BigInt(row.total_minor) - appliedAmount - creditedAmount : 0n).toString(), status: row.status,
       revision: row.revision, description: row.description, journalId: row.journal_id, reversalJournalId: row.reversal_journal_id,
       lines: lines(row.id).map(serialLine) }
   }
@@ -180,6 +184,7 @@ export function createInvoiceService(ctx: TradeContext) {
       authorize(input, 'accounting.reverse')
       if ((row.status !== 'posted' && row.status !== 'reversed') || !row.journal_id) return invalidState('Only a posted invoice can be reversed')
       if (applied(row.id) !== 0n) return conflict('Reverse allocations before reversing the invoice')
+      if (credited(row.id) !== 0n) return conflict('Reverse credit notes before reversing the invoice')
       const reversed = accounting.reverseWithinTransaction({ ...input, journalId: row.journal_id, date,
         idempotencyKey: requestKey, reason }, { allowDocumentSource: true })
       if (row.status === 'reversed') return { ...view(row), replayed: true }
