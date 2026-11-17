@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -32,7 +32,10 @@ test('real HTTP listener uses existing identity/trading/accounting services with
     const controlAccountId = ledger.createAccount({ ...scope, code: 'receivable', name: 'Receivable', category: 'asset' }).id
     const revenue = ledger.createAccount({ ...scope, code: 'revenue', name: 'Sales', category: 'revenue' }).id
     db.close()
-    const app = createApplication({ databasePath: dbPath, migrationDirectory: migrations, publicOrigin: () => base })
+    const webRoot = join(dir, 'web-dist')
+    await mkdir(webRoot)
+    await writeFile(join(webRoot, 'index.html'), '<!doctype html><main>Accounting client</main>')
+    const app = createApplication({ databasePath: dbPath, migrationDirectory: migrations, publicOrigin: () => base, webDistDirectory: webRoot })
     try {
       const bound = await listen(app.server, '127.0.0.1', 0)
       base = `http://127.0.0.1:${bound.port}`
@@ -46,6 +49,12 @@ test('real HTTP listener uses existing identity/trading/accounting services with
         fetch(`${base}${path}`, { method: 'POST', headers: { cookie, 'x-csrf-token': csrfToken, 'content-type': 'application/json', origin: base, ...overrides }, body: JSON.stringify(body) })
       assert.equal((await get('/health/live')).status, 200)
       assert.equal((await get('/health/ready')).status, 200)
+      assert.equal((await get('/invoices')).status, 200)
+      const missingApi = await get('/api/unrecognized')
+      assert.equal(missingApi.status, 404)
+      assert.equal(missingApi.headers.get('content-type'), 'application/json')
+      assert.equal((await missingApi.json() as { error: { code: string } }).error.code, 'NOT_FOUND')
+      assert.equal((await get('/api')).status, 404)
       assert.equal((await get(`/api/business/contacts?companyId=${boot.company.id}`)).status, 401)
       const contact = await send(`/api/business/contacts?companyId=${boot.company.id}`, { displayName: 'Customer A', requestKey: 'contact-a' })
       assert.equal(contact.status, 201)
@@ -83,7 +92,7 @@ test('real HTTP listener uses existing identity/trading/accounting services with
       assert.equal((await send(`/api/business/contacts?companyId=${boot.company.id}`, { displayName: 'Evil' }, { origin: 'https://evil.invalid' })).status, 403)
       assert.equal((await send(`/api/business/contacts?companyId=${boot.company.id}`, { displayName: 'Huge'.repeat(5000) })).status, 413)
       assert.equal((await get('/api/ai/provider', cookie)).status, 503)
-      assert.equal((await get('/does-not-exist')).status, 404)
+      assert.equal((await get('/does-not-exist')).status, 200) // SPA route; client router renders not-found
       assert.equal((await get(`/api/business/invoices?companyId=${boot.company.id}&kind=garbage`, cookie)).status, 400)
       assert.equal((await send(`/api/business/invoices?companyId=${boot.company.id}`, { kind: 'sale', lines: [{}] })).status, 400)
       const forgedHost = await new Promise<number>((resolve, reject) => {

@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { response } from '../http/request-security.ts'
 
 const MAX_REQUEST_BYTES = 16 * 1024
-const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
+const MAX_ATTACHMENT_REQUEST_BYTES = 14 * 1024 * 1024 // 10 MiB raw file, base64-encoded in JSON
 const MAX_CSV_IMPORT_BYTES = 2 * 1024 * 1024
 export interface NodeHttpOptions {
   origin: string | (() => string)
@@ -47,7 +47,7 @@ export function createNodeHttpServer(options: NodeHttpOptions): Server {
         }
         // Only the attachment endpoint accepts a large binary payload. All other requests stay small.
         const path = new URL(req.url, origin).pathname
-        const maxBytes = req.method === 'POST' && path === '/api/documents' ? MAX_ATTACHMENT_BYTES
+        const maxBytes = req.method === 'POST' && path === '/api/documents' ? MAX_ATTACHMENT_REQUEST_BYTES
           : req.method === 'POST' && path === '/api/imports/contacts' ? MAX_CSV_IMPORT_BYTES
           : MAX_REQUEST_BYTES
         const chunks: Buffer[] = []

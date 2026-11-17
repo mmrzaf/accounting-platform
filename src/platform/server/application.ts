@@ -28,7 +28,7 @@ export interface ApplicationOptions {
   /** 32-byte key; never store in the database or repository. Required to enable AI HTTP operations. */
   aiMasterKey?: Uint8Array
 }
-/** Reusable composition root. Later TanStack Start routes can mount these same typed HTTP adapters. */
+/** Composition root for the local Node server and SPA HTTP adapters. */
 export function createApplication(options: ApplicationOptions) {
   if (!existsSync(options.databasePath)) throw new Error('Database missing; run db:migrate and bootstrap first')
   const db = openDatabase(options.databasePath)
@@ -58,6 +58,11 @@ export function createApplication(options: ApplicationOptions) {
       if (path.startsWith('/api/ai/')) return aiHttp ? aiHttp(request) :
         new Response(JSON.stringify({ error: { code: 'AI_DISABLED', message: 'AI integration has not been configured on this installation' } }),
           { status: 503, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } })
+      // Never return the SPA shell for unknown API calls; clients need an actual 404.
+      if (path === '/api' || path.startsWith('/api/')) {
+        return new Response(JSON.stringify({ error: { code: 'NOT_FOUND', message: 'Unknown API endpoint' } }),
+          { status: 404, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } })
+      }
       if (web) {
         const page = web(request)
         if (page) return page
