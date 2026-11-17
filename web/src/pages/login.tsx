@@ -2,9 +2,11 @@ import { useState, type FormEvent } from 'react'
 import { useApplication } from '../app/context'
 import { request } from '../lib/api'
 import { Alert, Field, Submit } from '../components/ui'
+import { languages } from '../lib/i18n'
 
 export function Login() {
-  const { refresh } = useApplication()
+  const { refresh, locale, setLocale } = useApplication()
+  const persian = locale === 'fa'
   const [organizationSlug, setOrganizationSlug] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -16,14 +18,15 @@ export function Login() {
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Sign in failed') }
     finally { setBusy(false) }
   }
-  return <main className="login-screen" dir="rtl" lang="fa"><form className="login-panel" onSubmit={event => void submit(event)}>
-    <div className="brand"><div className="brand-mark">A</div><span>حسابداری</span></div>
-    <h1>ورود به سامانه</h1><p className="muted">به محیط مالی شرکت خود وارد شوید.</p>
+  return <main className="login-screen" dir={persian ? 'rtl' : 'ltr'} lang={locale}><form className="login-panel" onSubmit={event => void submit(event)}>
+    <div className="login-language"><label htmlFor="login-locale">{languages[locale].language}</label><select id="login-locale" value={locale} onChange={event => setLocale(event.target.value === 'en' ? 'en' : 'fa')}><option value="fa">فارسی</option><option value="en">English</option></select></div>
+    <div className="brand"><div className="brand-mark">A</div><span>{languages[locale].app}</span></div>
+    <h1>{persian ? 'ورود به سامانه' : 'Sign in'}</h1><p className="muted">{persian ? 'به محیط مالی شرکت خود وارد شوید.' : 'Access your company accounting workspace.'}</p>
     <Alert text={error}/>
-    <Field label="شناسه سازمان">{id => <input id={id} dir="ltr" autoComplete="organization" value={organizationSlug} onChange={e => setOrganizationSlug(e.target.value)} required/>}</Field>
-    <Field label="نام کاربری">{id => <input id={id} dir="ltr" autoComplete="username" value={username} onChange={e => setUsername(e.target.value)} required/>}</Field>
-    <Field label="گذرواژه">{id => <input id={id} type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} required/>}</Field>
-    <Submit busy={busy}>ورود</Submit>
-    <p className="muted fine-print">حساب‌های اولیه از طریق ابزار مدیریت سامانه ساخته می‌شوند.</p>
+    <Field label={persian ? "شناسه سازمان" : "Organization slug"}>{id => <input id={id} dir="ltr" autoComplete="organization" value={organizationSlug} onChange={e => setOrganizationSlug(e.target.value)} required/>}</Field>
+    <Field label={persian ? "نام کاربری" : "Username"}>{id => <input id={id} dir="ltr" autoComplete="username" value={username} onChange={e => setUsername(e.target.value)} required/>}</Field>
+    <Field label={persian ? "گذرواژه" : "Password"}>{id => <input id={id} type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} required/>}</Field>
+    <Submit busy={busy}>{persian ? 'ورود' : 'Sign in'}</Submit>
+    <p className="muted fine-print">{persian ? 'حساب‌های اولیه از طریق ابزار مدیریت سامانه ساخته می‌شوند.' : 'Initial accounts are created using the administration CLI.'}</p>
   </form></main>
 }

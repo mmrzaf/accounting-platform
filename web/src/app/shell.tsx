@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link, Outlet } from '@tanstack/react-router'
 import { useApplication } from './context'
 import { languages } from '../lib/i18n'
@@ -17,6 +18,7 @@ const links = [
 ]
 export function Shell() {
   const { session, loading, loadError, companies, companyId, setCompanyId, locale, setLocale, logout } = useApplication()
+  const [logoutError, setLogoutError] = useState<string | null>(null)
   const t = languages[locale]
   if (loading) return <main className="center"><Spinner /></main>
   if (loadError) return <main className="center"><div className="panel" role="alert"><p>{loadError}</p><button onClick={()=>window.location.reload()}>Retry connection</button></div></main>
@@ -30,7 +32,7 @@ export function Shell() {
           {t[link.key]}
         </Link>)}
       </nav>
-      <div className="sidebar-footer"><div>{session.user.displayName}</div><button type="button" className="text-button" onClick={() => void logout()}>{t.signOut}</button></div>
+      <div className="sidebar-footer"><div>{session.user.displayName}</div><button type="button" className="text-button" onClick={() => { setLogoutError(null); void logout().catch(error => setLogoutError(error instanceof Error ? error.message : String(error))) }}>{t.signOut}</button>{logoutError && <p role="alert">{logoutError}</p>}</div>
     </aside>
     <div className="workspace">
       <header className="topbar">

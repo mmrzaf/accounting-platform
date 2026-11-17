@@ -45,9 +45,8 @@ export function ApplicationProvider({ children }: { children: ReactNode }) {
   }, [])
   useEffect(() => { void refresh() }, [refresh])
   const logout = useCallback(async () => {
-    if (session) {
-      try { await request('/api/auth/logout', session.csrfToken, {}) } catch { /* local session still cleared */ }
-    }
+    // Keep the session visible if the server did not actually revoke it.
+    if (session) await request('/api/auth/logout', session.csrfToken, {})
     setSession(null); setCompanies([]); setCompanyId('')
   }, [session])
   const call = useCallback(<T,>(path: string, payload?: unknown): Promise<T> => {
