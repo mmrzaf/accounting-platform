@@ -25,6 +25,12 @@ export const PERMISSIONS = {
   'purchasing.manage': 'company',
   'payments.read': 'company',
   'payments.manage': 'company',
+  'tax.read': 'company',
+  'tax.manage': 'company',
+  'inventory.read': 'company',
+  'inventory.manage': 'company',
+  'documents.read': 'company',
+  'documents.manage': 'company',
 } as const satisfies Record<string, 'company' | 'organization'>
 
 export type Permission = keyof typeof PERMISSIONS
@@ -35,7 +41,7 @@ const companyPermissions = (Object.keys(PERMISSIONS) as Permission[]).filter(key
 export const SYSTEM_ROLES = [
   { code: 'organization-admin', name: 'Organization administrator', scope: 'organization', permissions: organizationPermissions },
   { code: 'company-admin', name: 'Company administrator', scope: 'company', permissions: companyPermissions },
-  { code: 'company-accountant', name: 'Company accountant', scope: 'company', permissions: ['company.read', 'ai.use', 'ai.execute', 'accounting.read', 'accounting.post', 'accounting.configure', 'accounting.reverse', 'accounting.close', 'contacts.read', 'sales.read', 'purchasing.read', 'payments.read', 'payments.manage'] },
-  { code: 'company-reader', name: 'Company read-only', scope: 'company', permissions: ['company.read', 'ai.use', 'accounting.read', 'contacts.read', 'sales.read', 'purchasing.read', 'payments.read'] },
-  { code: 'company-operator', name: 'Company operations', scope: 'company', permissions: ['company.read', 'ai.use', 'ai.execute', 'contacts.read', 'contacts.manage', 'sales.read', 'sales.manage', 'purchasing.read', 'purchasing.manage', 'payments.read'] },
+  { code: 'company-accountant', name: 'Company accountant', scope: 'company', permissions: ['company.read', 'ai.use', 'ai.execute', 'accounting.read', 'accounting.post', 'accounting.configure', 'accounting.reverse', 'accounting.close', 'contacts.read', 'sales.read', 'purchasing.read', 'payments.read', 'payments.manage', 'tax.read', 'tax.manage', 'inventory.read', 'documents.read'] },
+  { code: 'company-reader', name: 'Company read-only', scope: 'company', permissions: ['company.read', 'ai.use', 'accounting.read', 'contacts.read', 'sales.read', 'purchasing.read', 'payments.read', 'tax.read', 'inventory.read', 'documents.read'] },
+  { code: 'company-operator', name: 'Company operations', scope: 'company', permissions: ['company.read', 'ai.use', 'ai.execute', 'contacts.read', 'contacts.manage', 'sales.read', 'sales.manage', 'purchasing.read', 'purchasing.manage', 'payments.read', 'tax.read', 'inventory.read', 'inventory.manage', 'documents.read', 'documents.manage'] },
 ] as const satisfies readonly { code: string; name: string; scope: RoleScope; permissions: readonly Permission[] }[]
