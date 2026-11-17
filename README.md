@@ -12,6 +12,7 @@ A planned AI-native accounting and general trading platform for small Iranian bu
 - Modular identity composition: bootstrap, sessions, users, companies, roles, and shared security context; one public `createIdentityService` facade.
 - SQLite-backed accounting books, per-company charts, immutable journals, exact FX snapshots, period controls, reversals, trial balance, general ledger and category reconciliation. See [implemented ledger](docs/accounting/implemented-ledger.md).
 - Trading services: shared contacts, purchase/sale invoice drafts and posts, base-currency receipts/disbursements, partial settlements, audited allocation reversals, retry-safe commands, company-specific internal document numbering and ledger-backed corrections. See [trading workflows](docs/domain/trading-workflows.md).
+- Phase 7 company-scoped credit notes, dated tax-code schedules, current invoice aging, period profit-and-loss, quantity-only stock movements, transactional contact CSV imports, and checksum-protected attachment storage (see [limitations and contracts](docs/domain/first-release-extensions.md)).
 - AI module with organization-scoped encrypted provider configuration, permission-scoped business tools, audited automatic or confirmation-bound mutations, and a mock-tested OpenAI-compatible Chat Completions adapter. See [AI API](docs/api/ai-service.md).
 - Framework-neutral identity **and AI** HTTP `Request`/`Response` adapters with session cookies, origin/CSRF checks, and explicit request decoding; **not yet connected to an HTTP server**.
 - CLI for environment diagnostics, database migrations, backup/verify/restore, first administrator bootstrap, and local administrator recovery.
@@ -46,7 +47,7 @@ The last command prompts for a password (or supports `--password-stdin`), so cre
 
 Other scripts: `check:types`, `check:sources`, `check:boundaries`, `check:docs`, `build`, `test`, `verify`, `db:status`, `db:check`, `app:backup`, `app:backup-verify`, `app:restore`, and `app:recover-admin`.
 
-**No server is started by these commands.** `setup` creates directories; migrations/bootstrap are explicit. Backups protect the SQLite database only, not future attachments. The identity and AI HTTP adapters are not production network listeners or a production authentication deployment.
+**No server is started by these commands.** `setup` creates directories; migrations/bootstrap are explicit. **Current backups cover SQLite only, NOT newly implemented attachment blobs; do not use attachments in production until complete backup/restore is implemented.** The identity and AI HTTP adapters are not production network listeners or a production authentication deployment.
 
 ## Architecture and code ownership
 
@@ -54,14 +55,15 @@ Other scripts: `check:types`, `check:sources`, `check:boundaries`, `check:docs`,
 - [Module responsibilities](docs/architecture/modules.md) and [current code boundaries](docs/development/module-boundaries.md)
 - [Implemented ledger API and limitations](docs/accounting/implemented-ledger.md), [accounting invariants](docs/accounting/accounting-core.md) and [money/FX policy](docs/accounting/money-and-fx.md)
 - [Authorization](docs/security/authorization.md), [identity HTTP contract](docs/api/identity.md), [trading service contract](docs/api/trading-service.md), and [AI operations/HTTP contract](docs/api/ai-service.md)
+- [First-release extension contracts and limitations](docs/domain/first-release-extensions.md)
 - [Operation and recovery guidance](docs/operations/identity-bootstrap.md)
 - [Architecture decision register](docs/decisions/decision-register.md)
 - [Commit conventions](docs/development/commit-conventions.md)
 - [Reconstruction validation record](docs/validation/typescript-reconstruction.md) and [AI validation](docs/validation/phase-6.md)
-- [Next integration gates](docs/validation/next-stack-validation.md)
+- [Phase 7 validation](docs/validation/phase-7.md) and [next integration gates](docs/validation/next-stack-validation.md)
 
 ## Explicit non-goals and unresolved work
 
 The TypeScript reconstruction and Phase 4–5 establish independently tested service boundaries; they **do not** introduce TanStack Start, React, Drizzle, a running server, a user-visible invoice/payment UI, or an integrated AI UI. A backend AI execution service exists, but no actual hosted or local model provider has been validated. Purchase/sale and settlement source-document **backend services are implemented**, but they are not a finished financial product. Adding production dependencies and passing frozen-install, Node compatibility, real browser and security tests remains a prerequisite before a business release. The SQLite identity services currently access the database through centralized typed SQL-projection casts; those casts need stronger schema-backed mapping when production persistence integration is established.
 
-The company model, some detailed FX rules, inventory valuation and the final AI execution risk thresholds remain documented as proposed/pending, not silently approved. See the decision register. Any subsequent financial work must preserve double entry, postings/reversals, isolation and authorization invariants.
+The company model, some detailed FX rules, inventory valuation, statutory tax integration and the final AI execution risk thresholds remain documented as proposed/pending, not silently approved. See the decision register. Any subsequent financial work must preserve double entry, postings/reversals, isolation and authorization invariants.

@@ -18,6 +18,8 @@ Node 24 (primary; supported 22.16+ and 26), one Node.js process per installation
 
 ## Backup consistency considerations
 
+**Attachments exist now, but the CLI still snapshots ONLY the SQLite database. Restoring it alone leaves document references without their blobs. Production attachment deployment is blocked until coordinated backups are implemented.**
+
 Two stores (database + attachments) need a coordinated restore point. Safest first implementation: briefly quiesce attachment writes while generating a database snapshot and a content/checksum manifest. Backups should be signed/hashed and optionally encrypted; maintain recovery instructions and test a complete restore. Target RPO <= 1 hour and RTO <= 4 hours are proposals, not measured guarantees.
 
 ## Reliability and threat model

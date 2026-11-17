@@ -8,13 +8,13 @@ A single deployable modular monolith. Modules own behavior and their data invari
 | Organizations & companies | Company membership, company settings, legal identity | Identity via stable actor contracts |
 | Accounting | Account chart, journals, posting, periods, ledger queries, rates | Company scope, pure money primitives |
 | Trading (`src/modules/trading/`) | Shared contacts, source invoices, receipts/payments, allocations and journal provenance | Identity actor + accounting reference/posting ports |
-| Catalogue | Goods/services/nonstock descriptions and units | Organization scope |
+| Catalogue | General goods/services master remains unimplemented; inventory has a small company-local SKU list | Organization/company scope |
 | Sales | Sales documents and credit notes, lifecycle | Parties, catalogue, accounting posting port |
 | Purchasing | Purchase documents and supplier credits | Parties, catalogue, accounting posting port |
 | Payments | Receipts, disbursements, allocations, refunds | Sales, purchasing, accounting posting port |
-| Inventory (optional) | Movements and valuation | Catalogue, accounting posting port |
-| Reports | Ledger-derived and operational projections | Explicit read contracts |
-| Documents | Attachments and secure access | Organization/company scope |
+| Inventory (optional) | **Quantity-only** company items/movements; valuation unimplemented | Identity company scope |
+| Reports | Ledger-derived P&L / balance summary and current invoice-age projection | Accounting, trading read projections |
+| Documents | Scoped attachment metadata and local blob integrity; coordinated backup pending | Identity + company references |
 | AI (`src/modules/ai/`) | Encrypted provider config, contextual model calls, constrained tools, approval and execution policy | Identity permissions + existing trading/accounting application services |
 | Platform | Database, migrations, configuration, logging, backup, CLI | Infrastructure-only dependencies |
 

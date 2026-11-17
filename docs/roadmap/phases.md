@@ -11,7 +11,7 @@
 | 4 | Accounting engine | Standalone exact-arithmetic journal, reversal, periods, trial balance, general ledger and reconciliation **implemented and tested**; document flows, UI and FX settlement differences pending |
 | 5 | First business journeys | **Backend delivered/tested:** contacts, invoices, receipts/payments and allocations with accounting postings; Start/React transport and UX still blocked |
 | 6 | AI operations | Typed service calls with authorization, policy, idempotency and audit |
-| 7 | Remaining first-release features | Reports, returns, attachments, imports, optional inventory |
+| 7 | Remaining first-release features | **Partial backend delivered:** limited credit notes, current invoice age and P&L projections, dated tax schedules, quantity-only stock, CSV contact import, local attachments. Valued stock, refunds, full tax posting, opening-balance imports and combined backups remain open. |
 | 8 | Hardening and pilot | Security, accessibility, real pilot, backup restore and cross-platform pass |
 
 ## Increment discipline

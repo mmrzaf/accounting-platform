@@ -9,6 +9,7 @@ This repository contains an executable **foundation**, not a deployed TanStack a
 | `src/shared` | Stable primitives and cross-boundary contracts | Import no business, platform or UI code |
 | `src/modules/accounting` | Book and currency configuration, company-scoped accounts, immutable posting/reversals, ledger-only reporting | Independent of HTTP/UI/AI; depends on identity actor checks and SQLite platform only |
 | `src/modules/trading` | Contact directory, source documents, payments, allocations, draft revision and accounting service orchestration | No HTTP/UI/AI dependency; no direct journal writes |
+| `src/modules/{tax,inventory,reports,imports,documents}` | Company-scoped Phase 7 backend extensions; keep stock valuation outside quantity ledger and avoid manual journal writes |
 | `src/modules/identity` | Use cases, policies, credentials, sessions, company access, roles | No transport-framework or UI imports |
 | `src/platform/database` | SQLite connection, migrations, SQL projection boundary | No business policy |
 | `src/platform/http` | Request/response adapter; authentication transport | Decode input; call services; never trust caller-supplied actor |
